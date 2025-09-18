@@ -1,0 +1,9 @@
+-- PLC Directory Service
+CREATE USER plc WITH PASSWORD 'plc';
+CREATE DATABASE plc OWNER plc;
+GRANT ALL PRIVILEGES ON DATABASE plc TO plc;
+
+-- Relay Service
+CREATE USER relay WITH PASSWORD 'relay';
+CREATE DATABASE relay OWNER relay;
+GRANT ALL PRIVILEGES ON DATABASE relay TO relay;
