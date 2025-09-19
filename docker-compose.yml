@@ -9,15 +9,10 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_config:/config
-    ports:
-      - "443:443"
-      - "80:80"
 
   test-server:
     image: nginx:alpine
     command: sh -c "echo '<h1>Hello from test-server!</h1><p>This is served on port 80</p>' > /usr/share/nginx/html/index.html && nginx -g 'daemon off;'"
-    ports:
-      - "80"
 
   postgres:
     image: postgres:15-alpine
@@ -45,8 +40,6 @@ services:
       LOG_ENABLED: "true"
       LOG_LEVEL: "info"
       PORT: 3000
-    ports:
-      - "3000"
     depends_on:
       postgres:
         condition: service_healthy
