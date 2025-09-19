@@ -3,9 +3,9 @@ services:
     image: ghcr.io/erikologic/caddy-tailscale:main
     restart: unless-stopped
     environment:
-      - TS_API_CLIENT_ID=${TS_API_CLIENT_ID}
-      - TS_AUTHKEY=${TS_API_CLIENT_SECRET}
-      - TS_DOMAIN=${TS_DOMAIN}
+      - TS_API_CLIENT_ID=${TAILSCALE_CLIENT_ID}
+      - TS_AUTHKEY=${TAILSCALE_CLIENT_SECRET}
+      - TS_DOMAIN=${TAILSCALE_DOMAIN}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_config:/config

@@ -4,11 +4,7 @@ set -ex
 
 git submodule update --init --recursive
 
-docker compose up -d tailscale
-
-sleep 5
-
-docker compose exec tailscale /bin/sh -c "tailscale cert --cert-file /mnt/tls/cert.pem --key-file /mnt/tls/cert.key atproto-test.tail4d0c1f.ts.net"
+docker compose up -d 
 
 # postgres_container=$(docker ps --filter "name=postgres" --format '{{.Names}}')
 # plc_container=$(docker ps --filter "name=plc" --format '{{.Names}}')
