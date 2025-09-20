@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "moduleResolution": "node",
+    "module": "ESNext",
+    "lib": [
+      "ESNext"
+    ],
+    "target": "ESNext",
+    "types": [
+      "jest",
+      "node"
+    ]
+  }
+}

@@ -66,7 +66,6 @@ services:
       PDS_HOSTNAME: pds.${TAILSCALE_DOMAIN}
       PDS_JWT_SECRET: dev-secret-change-in-production
       PDS_PORT: 3000
-      PDS_SERVICE_HANDLE_DOMAINS: .test
       PDS_PLC_ROTATION_KEY_K256_PRIVATE_KEY_HEX: da7a7d92e8d8f8e6f2a5a1b8c4d3e2f1a9b7c5d4e3f2a8b6c9d7e5f3a1b4c6d8
       PDS_RECOVERY_DID_KEY: did:key:zQ3shsd3JjGDd8auYXp76QWijpjiwbPUv4oVdcACmXBjYnRsa
       PDS_DISABLE_SSRF_PROTECTION: true
