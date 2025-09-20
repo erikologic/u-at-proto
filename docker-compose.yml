@@ -33,9 +33,7 @@ services:
       retries: 5
 
   plc:
-    build:
-      context: ../did-method-plc
-      dockerfile: packages/server/Dockerfile
+    image: ghcr.io/erikologic/did-method-plc:latest
     environment:
       DB_CREDS_JSON: '{"username":"plc","password":"plc","host":"postgres","port":"5432","database":"plc"}'
       DB_MIGRATE_CREDS_JSON: '{"username":"plc","password":"plc","host":"postgres","port":"5432","database":"plc"}'
@@ -58,9 +56,7 @@ services:
       start_period: 10s
 
   pds:
-    build:
-      context: ../atproto
-      dockerfile: services/pds/Dockerfile
+    image: ghcr.io/bluesky-social/pds:latest
     environment:
       NODE_ENV: production
       PDS_ADMIN_PASSWORD: admin123
@@ -95,9 +91,7 @@ services:
       start_period: 10s
 
   relay:
-    build:
-      context: ../indigo
-      dockerfile: cmd/relay/Dockerfile
+    image: ghcr.io/erikologic/indigo:relay-04be6deb73a47fde352a4fc8b1a156c5c6e2ebf8
     environment:
       DATABASE_URL: postgres://relay:relay@postgres:5432/relay
       RELAY_PLC_HOST: https://plc.${TAILSCALE_DOMAIN}
@@ -134,6 +128,21 @@ services:
         condition: service_healthy
     command: >
       sh -c "sleep 5 && curl -u admin:admin123 -X POST https://relay.${TAILSCALE_DOMAIN}/admin/pds/requestCrawl -H 'Content-Type: application/json' -d '{\"hostname\": \"pds.${TAILSCALE_DOMAIN}\"}'"
+
+  atproto-test:
+    image: node:18-alpine
+    working_dir: /app
+    environment:
+      - TAILSCALE_DOMAIN=${TAILSCALE_DOMAIN}
+      - NODE_ENV=production
+    volumes:
+      - ./package.json:/app/package.json
+      - ./test_pds_relay.mjs:/app/test_pds_relay.mjs
+    depends_on:
+      relay-subscriber:
+        condition: service_completed_successfully
+    command: >
+      sh -c "npm install && sleep 10 && node test_pds_relay.mjs"
 
 volumes:
   caddy_config:
