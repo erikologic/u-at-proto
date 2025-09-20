@@ -1,10 +1,10 @@
 // Using built-in fetch in modern Node.js
 
-import { execSync } from 'child_process';
-
-const output = execSync('docker compose port pds.internal 80').toString().trim();
-const port = output.split(':').pop();
-const PDS_URL = `http://localhost:${port}`;
+const TAILSCALE_DOMAIN = process.env.TAILSCALE_DOMAIN;
+if (!TAILSCALE_DOMAIN) {
+  console.error('❌ Please set the TAILSCALE_DOMAIN environment variable to your Tailscale domain.');
+}
+const PDS_URL = `https://pds.${TAILSCALE_DOMAIN}`;
 
 async function createAccount(handle, password, email) {
   const response = await fetch(`${PDS_URL}/xrpc/com.atproto.server.createAccount`, {
@@ -131,8 +131,6 @@ async function main() {
   console.log(`- bob${id}.test (${bob.did})`);
 
   console.log('\n🔥 These posts should now be flowing through the relay!');
-  console.log(`🎯 Check relay at: http://localhost:65458/_health`);
-  console.log(`📡 Firehose endpoint: ws://localhost:61717/xrpc/com.atproto.sync.subscribeRepos`);
 }
 
 main().catch(console.error);

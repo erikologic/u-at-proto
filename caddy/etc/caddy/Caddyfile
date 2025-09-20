@@ -1,0 +1,39 @@
+# Multi-node Tailscale configuration example
+# This creates two separate Tailscale nodes under one Caddy instance
+# Each node responds with a simple message identifying itself
+
+{
+    tailscale {
+        ephemeral true
+        tags tag:test
+    }
+}
+
+:80 {
+    respond "Hello from caddy on docker network"
+}
+
+http://caddy-test.{$TAILSCALE_DOMAIN}  https://caddy-test.{$TAILSCALE_DOMAIN}  {
+    bind tailscale/caddy-test
+    respond "Hello from caddy on tailscale"
+}
+
+https://test.{$TAILSCALE_DOMAIN} {
+    bind tailscale/test
+    reverse_proxy test:80
+}
+
+https://plc.{$TAILSCALE_DOMAIN} {
+    bind tailscale/plc
+    reverse_proxy plc:3000
+}
+
+https://pds.{$TAILSCALE_DOMAIN} {
+    bind tailscale/pds
+    reverse_proxy pds:3000
+}
+
+https://relay.{$TAILSCALE_DOMAIN} {
+    bind tailscale/relay
+    reverse_proxy relay:3000
+}

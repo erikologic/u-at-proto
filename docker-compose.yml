@@ -5,14 +5,17 @@ services:
     environment:
       - TS_API_CLIENT_ID=${TAILSCALE_CLIENT_ID}
       - TS_AUTHKEY=${TAILSCALE_CLIENT_SECRET}
-      - TS_DOMAIN=${TAILSCALE_DOMAIN}
+      - TAILSCALE_DOMAIN=${TAILSCALE_DOMAIN}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_config:/config
+      - ./caddy/etc/caddy/Caddyfile:/etc/caddy/Caddyfile
+      # Store certs to avoid Let's Encrypt rate limiting
+      - ./caddy/config:/config
+    ports:
+      - "8080:80"
 
-  test-server:
+  test:
     image: nginx:alpine
-    command: sh -c "echo '<h1>Hello from test-server!</h1><p>This is served on port 80</p>' > /usr/share/nginx/html/index.html && nginx -g 'daemon off;'"
+    command: sh -c "echo '<h1>Hello from test!</h1><p>This is served on port 80</p>' > /usr/share/nginx/html/index.html && nginx -g 'daemon off;'"
 
   postgres:
     image: postgres:15-alpine
@@ -36,7 +39,7 @@ services:
     environment:
       DB_CREDS_JSON: '{"username":"plc","password":"plc","host":"postgres","port":"5432","database":"plc"}'
       DB_MIGRATE_CREDS_JSON: '{"username":"plc","password":"plc","host":"postgres","port":"5432","database":"plc"}'
-      ENABLE_MIGRATIONS: 'true'
+      ENABLE_MIGRATIONS: "true"
       LOG_ENABLED: "true"
       LOG_LEVEL: "info"
       PORT: 3000
@@ -44,76 +47,96 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --output-document=/dev/null http://127.0.0.1:3000/_health"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --output-document=/dev/null http://127.0.0.1:3000/_health",
+        ]
       interval: 10s
       timeout: 5s
       retries: 3
       start_period: 10s
 
-  # pds.internal:
-  #   build:
-  #     context: ../atproto
-  #     dockerfile: services/pds/Dockerfile
-  #   environment:
-  #     NODE_ENV: production
-  #     PDS_ADMIN_PASSWORD: admin123
-  #     PDS_BLOBSTORE_DISK_LOCATION: /app/data/blobs
-  #     PDS_DATA_DIRECTORY: /app/data
-  #     PDS_DID_PLC_URL: http://plc:3000
-  #     PDS_HOSTNAME: pds.internal
-  #     PDS_JWT_SECRET: dev-secret-change-in-production
-  #     PDS_PORT: 80
-  #     PDS_SERVICE_HANDLE_DOMAINS: .test
-  #     PDS_PLC_ROTATION_KEY_K256_PRIVATE_KEY_HEX: da7a7d92e8d8f8e6f2a5a1b8c4d3e2f1a9b7c5d4e3f2a8b6c9d7e5f3a1b4c6d8
-  #     PDS_RECOVERY_DID_KEY: did:key:zQ3shsd3JjGDd8auYXp76QWijpjiwbPUv4oVdcACmXBjYnRsa
-  #     PDS_DISABLE_SSRF_PROTECTION: true
-  #     PDS_DEV_MODE: true
-  #     PDS_INVITE_REQUIRED: false
-  #     LOG_ENABLED: "true"
-  #     LOG_LEVEL: "debug"
-  #   ports:
-  #     - "80"
-  #   volumes:
-  #     - pds_data:/app/data
-  #   depends_on:
-  #     plc:
-  #       condition: service_healthy
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "wget --no-verbose --tries=1 --output-document=/dev/null http://127.0.0.1/xrpc/_health"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 3
-  #     start_period: 10s
+  pds:
+    build:
+      context: ../atproto
+      dockerfile: services/pds/Dockerfile
+    environment:
+      NODE_ENV: production
+      PDS_ADMIN_PASSWORD: admin123
+      PDS_BLOBSTORE_DISK_LOCATION: /app/data/blobs
+      PDS_DATA_DIRECTORY: /app/data
+      PDS_DID_PLC_URL: https://plc.${TAILSCALE_DOMAIN}
+      PDS_HOSTNAME: pds.${TAILSCALE_DOMAIN}
+      PDS_JWT_SECRET: dev-secret-change-in-production
+      PDS_PORT: 3000
+      PDS_SERVICE_HANDLE_DOMAINS: .test
+      PDS_PLC_ROTATION_KEY_K256_PRIVATE_KEY_HEX: da7a7d92e8d8f8e6f2a5a1b8c4d3e2f1a9b7c5d4e3f2a8b6c9d7e5f3a1b4c6d8
+      PDS_RECOVERY_DID_KEY: did:key:zQ3shsd3JjGDd8auYXp76QWijpjiwbPUv4oVdcACmXBjYnRsa
+      PDS_DISABLE_SSRF_PROTECTION: true
+      PDS_DEV_MODE: true
+      PDS_INVITE_REQUIRED: false
+      LOG_ENABLED: "true"
+      LOG_LEVEL: "debug"
+    volumes:
+      - pds_data:/app/data
+    depends_on:
+      plc:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --output-document=/dev/null http://127.0.0.1:3000/xrpc/_health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
-  # relay:
-  #   build:
-  #     context: ../indigo
-  #     dockerfile: cmd/relay/Dockerfile
-  #   environment:
-  #     DATABASE_URL: postgres://relay:relay@postgres:5432/relay
-  #     RELAY_PLC_HOST: http://plc:3000
-  #     RELAY_ADMIN_PASSWORD: admin123
-  #     RELAY_PERSIST_DIR: /data/relay/persist
-  #     RELAY_ALLOW_INSECURE_HOSTS: "true"
-  #     RELAY_DISABLE_REQUEST_CRAWL: "false"
-  #     ENVIRONMENT: dev
-  #     LOG_LEVEL: debug
-  #   ports:
-  #     - "2470"
-  #   volumes:
-  #     - relay_data:/data/relay
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "wget --no-verbose --tries=1 --output-document=/dev/null http://127.0.0.1:2470/_health"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 3
-  #     start_period: 10s
+  relay:
+    build:
+      context: ../indigo
+      dockerfile: cmd/relay/Dockerfile
+    environment:
+      DATABASE_URL: postgres://relay:relay@postgres:5432/relay
+      RELAY_PLC_HOST: https://plc.${TAILSCALE_DOMAIN}
+      RELAY_ADMIN_PASSWORD: admin123
+      RELAY_PERSIST_DIR: /data/relay/persist
+      RELAY_ALLOW_INSECURE_HOSTS: "true"
+      RELAY_DISABLE_REQUEST_CRAWL: "false"
+      RELAY_API_LISTEN: 0.0.0.0:3000
+      RELAY_ALLOW_PRIVATE_NETWORKS: "true"
+      ENVIRONMENT: dev
+      LOG_LEVEL: trace
+    volumes:
+      - relay_data:/data/relay
+    depends_on:
+      postgres:
+        condition: service_healthy
+      pds:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --output-document=/dev/null http://127.0.0.1:3000/_health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  relay-subscriber:
+    image: curlimages/curl:latest
+    depends_on:
+      relay:
+        condition: service_healthy
+    command: >
+      sh -c "sleep 5 && curl -u admin:admin123 -X POST https://relay.${TAILSCALE_DOMAIN}/admin/pds/requestCrawl -H 'Content-Type: application/json' -d '{\"hostname\": \"pds.${TAILSCALE_DOMAIN}\"}'"
 
 volumes:
   caddy_config:
   postgres_data:
-  # pds_data:
-  # relay_data:
+  pds_data:
+  relay_data:
