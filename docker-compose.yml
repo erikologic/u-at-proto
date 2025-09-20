@@ -90,7 +90,7 @@ services:
       start_period: 10s
 
   relay:
-    image: ghcr.io/erikologic/indigo:relay-04be6deb73a47fde352a4fc8b1a156c5c6e2ebf8
+    image: ghcr.io/erikologic/indigo:relay-latest
     environment:
       DATABASE_URL: postgres://relay:relay@postgres:5432/relay
       RELAY_PLC_HOST: https://plc.${TAILSCALE_DOMAIN}
@@ -129,7 +129,7 @@ services:
       sh -c "sleep 5 && curl -u admin:admin123 -X POST https://relay.${TAILSCALE_DOMAIN}/admin/pds/requestCrawl -H 'Content-Type: application/json' -d '{\"hostname\": \"pds.${TAILSCALE_DOMAIN}\"}'"
 
   atproto-test:
-    image: node:18-alpine
+    image: node:22-alpine
     working_dir: /app
     environment:
       - TAILSCALE_DOMAIN=${TAILSCALE_DOMAIN}
