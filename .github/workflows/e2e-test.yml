@@ -15,30 +15,56 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Tailscale
+        uses: tailscale/github-action@v3
         with:
-          node-version: "22"
-          cache: "npm"
+          oauth-client-id: ${{ secrets.TAILSCALE_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TAILSCALE_CLIENT_SECRET }}
+          tags: tag:test
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Restore certificates cache
+        id: cache-certs
+        uses: actions/cache@v4
+        with:
+          path: caddy/config/certificates.tar.gz.enc
+          key: certificates
+
+      - name: Decrypt and extract certificates
+        if: steps.cache-certs.outputs.cache-hit == 'true'
+        env:
+          CERT_ENCRYPTION_KEY: ${{ secrets.CERT_ENCRYPTION_KEY }}
+        run: |
+          if [ -f "caddy/config/certificates.tar.gz.enc" ]; then
+            openssl enc -aes-256-cbc -d -in caddy/config/certificates.tar.gz.enc -out certificates.tar.gz -k "$CERT_ENCRYPTION_KEY"
+            tar -xzf certificates.tar.gz -C caddy/config/
+            rm certificates.tar.gz
+          fi
 
       - name: Start Docker Compose services
         env:
           TAILSCALE_CLIENT_ID: ${{ secrets.TAILSCALE_CLIENT_ID }}
           TAILSCALE_CLIENT_SECRET: ${{ secrets.TAILSCALE_CLIENT_SECRET }}
           TAILSCALE_DOMAIN: ${{ secrets.TAILSCALE_DOMAIN }}
-        run: docker compose up -d --wait
+        run: docker compose up --exit-code-from e2e-tests
 
-      - name: Run E2E tests
+      - name: Compress and encrypt certificates
+        if: always()
         env:
-          TAILSCALE_DOMAIN: ${{ secrets.TAILSCALE_DOMAIN }}
-        run: npm test
+          CERT_ENCRYPTION_KEY: ${{ secrets.CERT_ENCRYPTION_KEY }}
+        run: |
+          if [ -d "caddy/config" ]; then
+            sudo chown -R $USER:$USER caddy/config
+            tar -czf certificates.tar.gz -C caddy/config --exclude='certificates.tar.gz.enc' .
+            openssl enc -aes-256-cbc -in certificates.tar.gz -out caddy/config/certificates.tar.gz.enc -k "$CERT_ENCRYPTION_KEY"
+            rm certificates.tar.gz
+          fi
 
-      - name: Show Docker logs on failure
-        if: failure()
-        run: docker compose logs --tail all
+      - name: Save certificates cache
+        if: always() && steps.cache-certs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: caddy/config/certificates.tar.gz.enc
+          key: certificates
 
       - name: Stop and remove Docker Compose services
         if: always()

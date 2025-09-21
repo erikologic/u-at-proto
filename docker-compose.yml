@@ -1,16 +1,37 @@
 services:
-  test-tailscale:
+  # =============================================================================
+  # POSTGRES DATABASE
+  # =============================================================================
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # =============================================================================
+  # EXAMPLE SERVICE
+  # =============================================================================
+  example-tailscale:
     image: ghcr.io/erikologic/caddy-tailscale:main
     restart: unless-stopped
     environment:
       - TS_API_CLIENT_ID=${TAILSCALE_CLIENT_ID}
       - TS_AUTHKEY=${TAILSCALE_CLIENT_SECRET}
       - TAILSCALE_DOMAIN=${TAILSCALE_DOMAIN}
-      - SUBDOMAIN=test-${PARTITION}
+      - SUBDOMAIN=example-${PARTITION}
       - PORT=80
     volumes:
       - ./caddy/etc/caddy/Caddyfile:/etc/caddy/Caddyfile
-      - ./caddy/config/test:/config
+      - ./caddy/config/example:/config
     healthcheck:
       test:
         [
@@ -23,6 +44,17 @@ services:
         ]
       start_period: 10s
 
+  example:
+    image: nginx:alpine
+    depends_on:
+      example-tailscale:
+        condition: service_healthy
+    network_mode: "service:example-tailscale"
+    command: sh -c "echo '<h1>Hello from example!</h1><p>This is served on port 80</p>' > /usr/share/nginx/html/index.html && nginx -g 'daemon off;'"
+
+  # =============================================================================
+  # PLC (DID METHOD) SERVICE
+  # =============================================================================
   plc-tailscale:
     image: ghcr.io/erikologic/caddy-tailscale:main
     restart: unless-stopped
@@ -47,6 +79,30 @@ services:
         ]
       start_period: 10s
 
+  plc:
+    image: ghcr.io/erikologic/did-method-plc:latest
+    environment:
+      DB_CREDS_JSON: '{"username":"plc","password":"plc","host":"postgres","port":"5432","database":"plc"}'
+      DB_MIGRATE_CREDS_JSON: '{"username":"plc","password":"plc","host":"postgres","port":"5432","database":"plc"}'
+      ENABLE_MIGRATIONS: "true"
+      LOG_ENABLED: "true"
+      LOG_LEVEL: "info"
+      PORT: 3000
+    depends_on:
+      plc-tailscale:
+        condition: service_healthy
+    network_mode: "service:plc-tailscale"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --output-document=/dev/null  https://plc-${PARTITION}.${TAILSCALE_DOMAIN}/_health ",
+        ]
+      start_period: 10s
+
+  # =============================================================================
+  # PDS (PERSONAL DATA SERVER) SERVICE
+  # =============================================================================
   pds-tailscale:
     image: ghcr.io/erikologic/caddy-tailscale:main
     restart: unless-stopped
@@ -71,6 +127,41 @@ services:
         ]
       start_period: 10s
 
+  pds:
+    image: ghcr.io/bluesky-social/pds:latest
+    environment:
+      NODE_ENV: production
+      PDS_ADMIN_PASSWORD: admin123
+      PDS_BLOBSTORE_DISK_LOCATION: /app/data/blobs
+      PDS_DATA_DIRECTORY: /app/data
+      PDS_DID_PLC_URL: https://plc-${PARTITION}.${TAILSCALE_DOMAIN}
+      PDS_HOSTNAME: pds-${PARTITION}.${TAILSCALE_DOMAIN}
+      PDS_JWT_SECRET: dev-secret-change-in-production
+      PDS_PORT: 3000
+      PDS_PLC_ROTATION_KEY_K256_PRIVATE_KEY_HEX: da7a7d92e8d8f8e6f2a5a1b8c4d3e2f1a9b7c5d4e3f2a8b6c9d7e5f3a1b4c6d8
+      PDS_RECOVERY_DID_KEY: did:key:zQ3shsd3JjGDd8auYXp76QWijpjiwbPUv4oVdcACmXBjYnRsa
+      PDS_DISABLE_SSRF_PROTECTION: true
+      PDS_DEV_MODE: true
+      PDS_INVITE_REQUIRED: false
+      LOG_ENABLED: "true"
+      LOG_LEVEL: "debug"
+    volumes:
+      - pds_data:/app/data
+    depends_on:
+      pds-tailscale:
+        condition: service_healthy
+    network_mode: "service:pds-tailscale"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --output-document=/dev/null https://pds-${PARTITION}.${TAILSCALE_DOMAIN}/xrpc/_health",
+        ]
+      start_period: 10s
+
+  # =============================================================================
+  # RELAY SERVICE
+  # =============================================================================
   relay-tailscale:
     image: ghcr.io/erikologic/caddy-tailscale:main
     restart: unless-stopped
@@ -95,83 +186,6 @@ services:
         ]
       start_period: 10s
 
-  test:
-    image: nginx:alpine
-    command: sh -c "echo '<h1>Hello from test!</h1><p>This is served on port 80</p>' > /usr/share/nginx/html/index.html && nginx -g 'daemon off;'"
-    network_mode: "service:test-tailscale"
-
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_PASSWORD: postgres
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
-    ports:
-      - "5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  plc:
-    image: ghcr.io/erikologic/did-method-plc:latest
-    environment:
-      DB_CREDS_JSON: '{"username":"plc","password":"plc","host":"postgres","port":"5432","database":"plc"}'
-      DB_MIGRATE_CREDS_JSON: '{"username":"plc","password":"plc","host":"postgres","port":"5432","database":"plc"}'
-      ENABLE_MIGRATIONS: "true"
-      LOG_ENABLED: "true"
-      LOG_LEVEL: "info"
-      PORT: 3000
-    depends_on:
-      postgres:
-        condition: service_healthy
-      plc-tailscale:
-        condition: service_healthy
-    network_mode: "service:plc-tailscale"
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "wget --no-verbose --tries=1 --output-document=/dev/null http://127.0.0.1:3000/_health",
-        ]
-      start_period: 10s
-
-  pds:
-    image: ghcr.io/bluesky-social/pds:latest
-    environment:
-      NODE_ENV: production
-      PDS_ADMIN_PASSWORD: admin123
-      PDS_BLOBSTORE_DISK_LOCATION: /app/data/blobs
-      PDS_DATA_DIRECTORY: /app/data
-      PDS_DID_PLC_URL: https://plc-${PARTITION}.${TAILSCALE_DOMAIN}
-      PDS_HOSTNAME: pds-${PARTITION}.${TAILSCALE_DOMAIN}
-      PDS_JWT_SECRET: dev-secret-change-in-production
-      PDS_PORT: 3000
-      PDS_PLC_ROTATION_KEY_K256_PRIVATE_KEY_HEX: da7a7d92e8d8f8e6f2a5a1b8c4d3e2f1a9b7c5d4e3f2a8b6c9d7e5f3a1b4c6d8
-      PDS_RECOVERY_DID_KEY: did:key:zQ3shsd3JjGDd8auYXp76QWijpjiwbPUv4oVdcACmXBjYnRsa
-      PDS_DISABLE_SSRF_PROTECTION: true
-      PDS_DEV_MODE: true
-      PDS_INVITE_REQUIRED: false
-      LOG_ENABLED: "true"
-      LOG_LEVEL: "debug"
-    volumes:
-      - pds_data:/app/data
-    depends_on:
-      plc:
-        condition: service_healthy
-      pds-tailscale:
-        condition: service_healthy
-    network_mode: "service:pds-tailscale"
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "wget --no-verbose --tries=1 --output-document=/dev/null http://127.0.0.1:3000/xrpc/_health",
-        ]
-      start_period: 10s
-
   relay:
     image: ghcr.io/erikologic/indigo:relay-latest
     environment:
@@ -185,13 +199,11 @@ services:
       RELAY_ALLOW_PRIVATE_NETWORKS: "true"
       ENVIRONMENT: dev
       LOG_LEVEL: trace
+      PARTITION: ${PARTITION}
+      TAILSCALE_DOMAIN: ${TAILSCALE_DOMAIN}
     volumes:
       - relay_data:/data/relay
     depends_on:
-      postgres:
-        condition: service_healthy
-      pds:
-        condition: service_healthy
       relay-tailscale:
         condition: service_healthy
     network_mode: "service:relay-tailscale"
@@ -199,30 +211,36 @@ services:
       test:
         [
           "CMD-SHELL",
-          "wget --no-verbose --tries=1 --output-document=/dev/null http://127.0.0.1:3000/_health",
+          "wget --no-verbose --tries=1 --output-document=/dev/null https://relay-${PARTITION}.${TAILSCALE_DOMAIN}/_health",
         ]
       start_period: 10s
 
-  tailscale:
-    image: tailscale/tailscale:latest
-    environment:
-      - TS_AUTHKEY=${TAILSCALE_CLIENT_SECRET}
-      - TS_EXTRA_ARGS=--advertise-tags=tag:test
-    healthcheck:
-      test: ["CMD", "tailscale", "status"]
-
-  relay-subscriber:
+  # =============================================================================
+  # PREPARATION SERVICE
+  # =============================================================================
+  prepare:
     image: curlimages/curl:latest
     depends_on:
+      postgres:
+        condition: service_healthy
+      plc:
+        condition: service_healthy
+      pds:
+        condition: service_healthy
       relay:
         condition: service_healthy
-      tailscale:
-        condition: service_healthy
-    network_mode: "service:tailscale"
-    command: >
-      sh -c "sleep 5 && curl -u admin:admin123 -X POST https://relay-${PARTITION}.${TAILSCALE_DOMAIN}/admin/pds/requestCrawl -H 'Content-Type: application/json' -d '{\"hostname\": \"pds-${PARTITION}.${TAILSCALE_DOMAIN}\"}'"
+    working_dir: /app
+    environment:
+      - TAILSCALE_DOMAIN=${TAILSCALE_DOMAIN}
+      - PARTITION=${PARTITION}
+    volumes:
+      - ./prepare.sh:/app/prepare.sh:ro
+    command: sh /app/prepare.sh
 
-  atproto-test:
+  # =============================================================================
+  # E2E TESTS
+  # =============================================================================
+  e2e-tests:
     image: node:22-alpine
     working_dir: /app
     environment:
@@ -235,11 +253,8 @@ services:
       - ./package.json:/app/package.json
       - ./tsconfig.json:/app/tsconfig.json
     depends_on:
-      relay-subscriber:
+      prepare:
         condition: service_completed_successfully
-      tailscale:
-        condition: service_healthy
-    network_mode: "service:tailscale"
     command: >
       sh -c "npm install && npm test"
 
