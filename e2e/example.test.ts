@@ -6,11 +6,19 @@ if (!TAILSCALE_DOMAIN) {
   throw new Error("TAILSCALE_DOMAIN env var is required");
 }
 
+const PARTITION = process.env.PARTITION;
+if (!PARTITION) {
+  throw new Error("PARTITION env var is required");
+}
+
+const RELAY_DOMAIN = `relay-${PARTITION}.${TAILSCALE_DOMAIN}`;
+const PDS_DOMAIN = `pds-${PARTITION}.${TAILSCALE_DOMAIN}`;
+
 describe("Local ATProto E2E Tests", () => {
   it("commits on a PDS are pushed on a relay", async () => {
     const commitEvents = [];
     const firehose = new Firehose({
-      relay: `https://relay.${TAILSCALE_DOMAIN}`,
+      relay: `https://${RELAY_DOMAIN}`,
     });
 
     firehose.on("commit", (commit) => {
@@ -20,7 +28,7 @@ describe("Local ATProto E2E Tests", () => {
     firehose.start();
 
     const agent = new AtpAgent({
-      service: `https://pds.${TAILSCALE_DOMAIN}`,
+      service: `https://${PDS_DOMAIN}`,
     });
 
     const rand = Math.floor(Math.random() * 10000);
@@ -28,7 +36,7 @@ describe("Local ATProto E2E Tests", () => {
     await agent.createAccount({
       email: `${name}@mail.com`,
       password: "abc123",
-      handle: `${name}.pds.${TAILSCALE_DOMAIN}`,
+      handle: `${name}.${PDS_DOMAIN}`,
     });
 
     const test = "Hello world!";
@@ -42,7 +50,7 @@ describe("Local ATProto E2E Tests", () => {
     );
 
     // Wait for events to propagate to the relay
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    await new Promise((resolve) => setTimeout(resolve, 5000));
 
     firehose.close();
 

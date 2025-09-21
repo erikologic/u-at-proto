@@ -6,7 +6,7 @@ services:
       - TS_API_CLIENT_ID=${TAILSCALE_CLIENT_ID}
       - TS_AUTHKEY=${TAILSCALE_CLIENT_SECRET}
       - TAILSCALE_DOMAIN=${TAILSCALE_DOMAIN}
-      - SUBDOMAIN=test
+      - SUBDOMAIN=test-${PARTITION}
       - PORT=80
     volumes:
       - ./caddy/etc/caddy/Caddyfile:/etc/caddy/Caddyfile
@@ -30,7 +30,7 @@ services:
       - TS_API_CLIENT_ID=${TAILSCALE_CLIENT_ID}
       - TS_AUTHKEY=${TAILSCALE_CLIENT_SECRET}
       - TAILSCALE_DOMAIN=${TAILSCALE_DOMAIN}
-      - SUBDOMAIN=plc
+      - SUBDOMAIN=plc-${PARTITION}
       - PORT=3000
     volumes:
       - ./caddy/etc/caddy/Caddyfile:/etc/caddy/Caddyfile
@@ -54,7 +54,7 @@ services:
       - TS_API_CLIENT_ID=${TAILSCALE_CLIENT_ID}
       - TS_AUTHKEY=${TAILSCALE_CLIENT_SECRET}
       - TAILSCALE_DOMAIN=${TAILSCALE_DOMAIN}
-      - SUBDOMAIN=pds
+      - SUBDOMAIN=pds-${PARTITION}
       - PORT=3000
     volumes:
       - ./caddy/etc/caddy/Caddyfile:/etc/caddy/Caddyfile
@@ -78,7 +78,7 @@ services:
       - TS_API_CLIENT_ID=${TAILSCALE_CLIENT_ID}
       - TS_AUTHKEY=${TAILSCALE_CLIENT_SECRET}
       - TAILSCALE_DOMAIN=${TAILSCALE_DOMAIN}
-      - SUBDOMAIN=relay
+      - SUBDOMAIN=relay-${PARTITION}
       - PORT=3000
     volumes:
       - ./caddy/etc/caddy/Caddyfile:/etc/caddy/Caddyfile
@@ -145,8 +145,8 @@ services:
       PDS_ADMIN_PASSWORD: admin123
       PDS_BLOBSTORE_DISK_LOCATION: /app/data/blobs
       PDS_DATA_DIRECTORY: /app/data
-      PDS_DID_PLC_URL: https://plc.${TAILSCALE_DOMAIN}
-      PDS_HOSTNAME: pds.${TAILSCALE_DOMAIN}
+      PDS_DID_PLC_URL: https://plc-${PARTITION}.${TAILSCALE_DOMAIN}
+      PDS_HOSTNAME: pds-${PARTITION}.${TAILSCALE_DOMAIN}
       PDS_JWT_SECRET: dev-secret-change-in-production
       PDS_PORT: 3000
       PDS_PLC_ROTATION_KEY_K256_PRIVATE_KEY_HEX: da7a7d92e8d8f8e6f2a5a1b8c4d3e2f1a9b7c5d4e3f2a8b6c9d7e5f3a1b4c6d8
@@ -176,7 +176,7 @@ services:
     image: ghcr.io/erikologic/indigo:relay-latest
     environment:
       DATABASE_URL: postgres://relay:relay@postgres:5432/relay
-      RELAY_PLC_HOST: https://plc.${TAILSCALE_DOMAIN}
+      RELAY_PLC_HOST: https://plc-${PARTITION}.${TAILSCALE_DOMAIN}
       RELAY_ADMIN_PASSWORD: admin123
       RELAY_PERSIST_DIR: /data/relay/persist
       RELAY_ALLOW_INSECURE_HOSTS: "true"
@@ -220,13 +220,14 @@ services:
         condition: service_healthy
     network_mode: "service:tailscale"
     command: >
-      sh -c "sleep 5 && curl -u admin:admin123 -X POST https://relay.${TAILSCALE_DOMAIN}/admin/pds/requestCrawl -H 'Content-Type: application/json' -d '{\"hostname\": \"pds.${TAILSCALE_DOMAIN}\"}'"
+      sh -c "sleep 5 && curl -u admin:admin123 -X POST https://relay-${PARTITION}.${TAILSCALE_DOMAIN}/admin/pds/requestCrawl -H 'Content-Type: application/json' -d '{\"hostname\": \"pds-${PARTITION}.${TAILSCALE_DOMAIN}\"}'"
 
   atproto-test:
     image: node:22-alpine
     working_dir: /app
     environment:
       - TAILSCALE_DOMAIN=${TAILSCALE_DOMAIN}
+      - PARTITION=${PARTITION}
     volumes:
       - ./e2e:/app/e2e
       - ./jest.config.js:/app/jest.config.js
