@@ -210,12 +210,6 @@ services:
       - TS_EXTRA_ARGS=--advertise-tags=tag:test
     healthcheck:
       test: ["CMD", "tailscale", "status"]
-    # cap_add:
-    #   - NET_ADMIN
-    #   - SYS_MODULE
-    # volumes:
-    #   - /dev/net/tun:/dev/net/tun
-    # command: tailscaled
 
   relay-subscriber:
     image: curlimages/curl:latest

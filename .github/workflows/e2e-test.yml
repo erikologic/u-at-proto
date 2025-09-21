@@ -33,10 +33,10 @@ jobs:
           TAILSCALE_DOMAIN: ${{ secrets.TAILSCALE_DOMAIN }}
         run: npm test
 
+      - name: Show Docker logs on failure
+        if: failure()
+        run: docker compose logs --tail all
+
       - name: Stop and remove Docker Compose services
         if: always()
         run: docker compose down -v
-
-      - name: Show Docker logs on failure
-        if: failure()
-        run: docker compose logs
