@@ -56,6 +56,8 @@ services:
     depends_on:
       plc-tailscale:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
     network_mode: "service:plc-tailscale"
     healthcheck:
       test:
@@ -115,6 +117,8 @@ services:
     depends_on:
       pds-tailscale:
         condition: service_healthy
+      plc:
+        condition: service_healthy
     network_mode: "service:pds-tailscale"
     healthcheck:
       test:
@@ -171,6 +175,10 @@ services:
     depends_on:
       relay-tailscale:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
+      pds:
+        condition: service_healthy
     network_mode: "service:relay-tailscale"
     healthcheck:
       test:
@@ -186,12 +194,6 @@ services:
   prepare:
     image: curlimages/curl:latest
     depends_on:
-      postgres:
-        condition: service_healthy
-      plc:
-        condition: service_healthy
-      pds:
-        condition: service_healthy
       relay:
         condition: service_healthy
     working_dir: /app

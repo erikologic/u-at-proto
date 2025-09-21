@@ -56,6 +56,7 @@ jobs:
           docker compose --profile test run --rm e2e-tests
 
       - name: Show logs
+        if: always()
         env:
           TAILSCALE_CLIENT_ID: ${{ secrets.TAILSCALE_CLIENT_ID }}
           TAILSCALE_CLIENT_SECRET: ${{ secrets.TAILSCALE_CLIENT_SECRET }}
