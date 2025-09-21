@@ -1,4 +1,4 @@
-# UAT ATProtocol Demo Environment
+# Your UAT AT environment
 
 This project provides a complete UAT (User Acceptance Testing) environment for the AT Protocol ecosystem. It sets up a full ATProtocol network including PLC directory, Personal Data Server (PDS), and Relay services, accessible through Tailscale for secure networking.
 
