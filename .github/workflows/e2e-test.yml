@@ -46,8 +46,8 @@ jobs:
           TAILSCALE_CLIENT_SECRET: ${{ secrets.TAILSCALE_CLIENT_SECRET }}
           TAILSCALE_DOMAIN: ${{ secrets.TAILSCALE_DOMAIN }}
         run: |
-          docker compose up -d
-          docker compose run --rm e2e-tests
+          docker compose up -d --wait
+          docker compose --profile test run --rm e2e-tests
 
       - name: Compress and encrypt certificates
         if: always()

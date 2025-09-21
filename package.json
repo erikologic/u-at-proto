@@ -1,5 +1,5 @@
 {
-  "name": "local-atproto",
+  "name": "u-at-proto",
   "version": "1.0.0",
   "type": "module",
   "main": "index.js",

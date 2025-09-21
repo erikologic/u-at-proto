@@ -1,88 +1,119 @@
-# Local AT Protocol Development Environment
+# UAT ATProtocol Demo Environment
 
-This Docker Compose setup provides a local development environment for AT Protocol services.
+This project provides a complete UAT (User Acceptance Testing) environment for the AT Protocol ecosystem. It sets up a full ATProtocol network including PLC directory, Personal Data Server (PDS), and Relay services, accessible through Tailscale for secure networking.
 
-## Services
+## Architecture
 
-- **PostgreSQL**: Shared database instance for all AT Protocol services
-- **PLC Server**: DID PLC Directory Service
-- **PDS Server**: Personal Data Server
-- **Relay Server**: Real-time message relay service
-- **AT Protocol Test**: Automated test that verifies PDS-to-Relay communication
+The environment consists of these core services:
 
-## Getting Started
+- **PostgreSQL**: Shared database for all AT Protocol services
+- **PLC Server**: DID PLC Directory Service for decentralized identity
+- **PDS Server**: Personal Data Server for user data and content
+- **Relay Server**: Real-time message relay for the AT Protocol firehose
 
-1. Start the services:
+Each service is exposed through Tailscale with automatic SSL certificate management via Caddy.
+
+## Prerequisites
+
+- Docker and Docker Compose
+- Tailscale account and network setup
+- GHA for CI
+
+### Service URLs
+
+- PLC: `https://plc-{PARTITION}.{TAILSCALE_DOMAIN}`
+- PDS: `https://pds-{PARTITION}.{TAILSCALE_DOMAIN}`
+- Relay: `https://relay-{PARTITION}.{TAILSCALE_DOMAIN}`
+
+## Local Setup
+
+1. **Set up Tailscale OAuth credentials**:
+   - Visit [Tailscale Admin Console](https://login.tailscale.com/admin/settings/oauth)
+   - Create OAuth client with appropriate scopes
+   - Note your client ID and secret
+
+2. **Configure environment variables**:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Edit the .env file
+
+3. **Start the environment**:
 
    ```bash
    docker compose up -d
    ```
 
-2. Check service health:
+4. **Verify services are healthy**:
 
    ```bash
    docker compose ps
    ```
 
-3. View logs:
+5. **Run E2E tests**:
 
    ```bash
-   docker compose logs -f plc
+   docker compose run --rm e2e-tests
    ```
 
-4. Connect to PostgreSQL:
+## CI/CD Setup (GitHub Actions)
 
-   ```bash
-   docker compose exec postgres psql -U atproto -d atproto
-   ```
+### Required GitHub Secrets
 
-5. Stop the services, remove the containers, and clean up volumes and images (deletes databases and files):
+Add these secrets to your GitHub repository (Settings → Secrets and variables → Actions):
 
-   ```bash
-   docker-compose down -v
-   ```
+| Secret | Description |
+|--------|-------------|
+| `TAILSCALE_CLIENT_ID` | OAuth client ID from Tailscale |
+| `TAILSCALE_CLIENT_SECRET` | OAuth secret from Tailscale |
+| `TAILSCALE_DOMAIN` | Your Tailscale domain |
+| `CERT_ENCRYPTION_KEY` | Random key for SSL certificate caching |
 
-6. Stop the services and remove containers (keeps databases and files for later use):
+### Workflow Configuration
 
-   ```bash
-   docker-compose down
-   ```
+The CI workflow (`e2e-test.yml`) automatically:
 
-## Testing
+1. Connects to your Tailscale network
+2. Restores/caches SSL certificates
+3. Starts all services
+4. Runs E2E tests
+5. Saves updated certificates
 
-The setup includes an automated test (`atproto-test` service) that:
+The workflow runs on every push to `main` branch.
 
-1. Connects to the relay WebSocket to listen for events
-2. Creates two test users on the PDS (`alice.test` and `bob.test`)
-3. Posts content from both users (2 posts each)
-4. Verifies that events are received through the relay
-5. Reports success/failure
+## Running Tests
 
-### Running the test
-
-The test runs automatically after all services are healthy and the relay-subscriber has completed:
+These projects demo how to integrate a test suite with the docker compose setup.  
+By default no E2E tests are run.
+Tests can be run with:
 
 ```bash
-docker compose up
+docker compose --profile test run --rm e2e-tests
 ```
 
-To run the test manually:
+### Test Scenarios
+
+The E2E tests validate:
+
+- Content posting
+
+## Useful Commands
 
 ```bash
-npm install
-node test_pds_relay.mjs
+# View all service logs
+docker compose logs -f
+
+# Restart specific service
+docker compose restart pds
+
+# Connect to PostgreSQL
+docker compose exec postgres psql -U postgres
+
+# Clean restart (removes all data)
+docker compose down -v && docker compose up -d
+
+# Check Tailscale status
+docker compose exec pds-tailscale tailscale status
 ```
-
-### Test output
-
-The test provides detailed logging showing:
-
-- Relay connection status
-- User creation and login
-- Post creation
-- Event reception from relay
-- Final test results
-
-## Connecting to the services
-
-Services can be accessed by any machine connected to the same Tailscale network using: `<service>.<TAILSCALE_DOMAIN>` (e.g. `pds.tail0123.ts.net`).

@@ -18,41 +18,6 @@ services:
       retries: 5
 
   # =============================================================================
-  # EXAMPLE SERVICE
-  # =============================================================================
-  example-tailscale:
-    image: ghcr.io/erikologic/caddy-tailscale:main
-    restart: unless-stopped
-    environment:
-      - TS_API_CLIENT_ID=${TAILSCALE_CLIENT_ID}
-      - TS_AUTHKEY=${TAILSCALE_CLIENT_SECRET}
-      - TAILSCALE_DOMAIN=${TAILSCALE_DOMAIN}
-      - SUBDOMAIN=example-${PARTITION}
-      - PORT=80
-    volumes:
-      - ./caddy/etc/caddy/Caddyfile:/etc/caddy/Caddyfile
-      - ./caddy/config/example:/config
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://localhost:8080",
-        ]
-      start_period: 10s
-
-  example:
-    image: nginx:alpine
-    depends_on:
-      example-tailscale:
-        condition: service_healthy
-    network_mode: "service:example-tailscale"
-    command: sh -c "echo '<h1>Hello from example!</h1><p>This is served on port 80</p>' > /usr/share/nginx/html/index.html && nginx -g 'daemon off;'"
-
-  # =============================================================================
   # PLC (DID METHOD) SERVICE
   # =============================================================================
   plc-tailscale:
@@ -241,6 +206,7 @@ services:
   # E2E TESTS
   # =============================================================================
   e2e-tests:
+    profiles: ["test"]
     image: node:22-alpine
     working_dir: /app
     environment:
