@@ -20,7 +20,7 @@ Each service is exposed through Tailscale with automatic SSL certificate managem
 ## Prerequisites
 
 - Docker and Docker Compose
-- Tailscale account and network setup
+- Tailscale (running on the host)
 - GHA for CI
 
 ### Service URLs
