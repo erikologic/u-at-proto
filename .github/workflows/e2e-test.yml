@@ -45,10 +45,24 @@ jobs:
           TAILSCALE_CLIENT_ID: ${{ secrets.TAILSCALE_CLIENT_ID }}
           TAILSCALE_CLIENT_SECRET: ${{ secrets.TAILSCALE_CLIENT_SECRET }}
           TAILSCALE_DOMAIN: ${{ secrets.TAILSCALE_DOMAIN }}
-        run: |
-          docker compose up -d --wait
+        run: docker compose up -d
+      
+      - name: Run the E2E tests
+        env:
+          TAILSCALE_CLIENT_ID: ${{ secrets.TAILSCALE_CLIENT_ID }}
+          TAILSCALE_CLIENT_SECRET: ${{ secrets.TAILSCALE_CLIENT_SECRET }}
+          TAILSCALE_DOMAIN: ${{ secrets.TAILSCALE_DOMAIN }}
+        run: 
           docker compose --profile test run --rm e2e-tests
 
+      - name: Show logs
+        env:
+          TAILSCALE_CLIENT_ID: ${{ secrets.TAILSCALE_CLIENT_ID }}
+          TAILSCALE_CLIENT_SECRET: ${{ secrets.TAILSCALE_CLIENT_SECRET }}
+          TAILSCALE_DOMAIN: ${{ secrets.TAILSCALE_DOMAIN }}
+        run: 
+          docker compose logs -n all
+          
       - name: Compress and encrypt certificates
         if: always()
         env:
