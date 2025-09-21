@@ -2,6 +2,10 @@
 
 This project provides a complete UAT (User Acceptance Testing) environment for the AT Protocol ecosystem. It sets up a full ATProtocol network including PLC directory, Personal Data Server (PDS), and Relay services, accessible through Tailscale for secure networking.
 
+## Credits
+
+The SmokeSignal team for lots of inspiration around using Tailscale to for TLS support: https://tangled.org/@smokesignal.events/localdev
+
 ## Architecture
 
 The environment consists of these core services:
