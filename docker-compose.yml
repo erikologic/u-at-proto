@@ -1,21 +1,104 @@
 services:
-  caddy:
+  test-tailscale:
     image: ghcr.io/erikologic/caddy-tailscale:main
     restart: unless-stopped
     environment:
       - TS_API_CLIENT_ID=${TAILSCALE_CLIENT_ID}
       - TS_AUTHKEY=${TAILSCALE_CLIENT_SECRET}
       - TAILSCALE_DOMAIN=${TAILSCALE_DOMAIN}
+      - SUBDOMAIN=test
+      - PORT=80
     volumes:
       - ./caddy/etc/caddy/Caddyfile:/etc/caddy/Caddyfile
-      # Store certs to avoid Let's Encrypt rate limiting
-      - ./caddy/config:/config
-    ports:
-      - "8080:80"
+      - ./caddy/config/test:/config
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080",
+        ]
+      start_period: 10s
+
+  plc-tailscale:
+    image: ghcr.io/erikologic/caddy-tailscale:main
+    restart: unless-stopped
+    environment:
+      - TS_API_CLIENT_ID=${TAILSCALE_CLIENT_ID}
+      - TS_AUTHKEY=${TAILSCALE_CLIENT_SECRET}
+      - TAILSCALE_DOMAIN=${TAILSCALE_DOMAIN}
+      - SUBDOMAIN=plc
+      - PORT=3000
+    volumes:
+      - ./caddy/etc/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ./caddy/config/plc:/config
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080",
+        ]
+      start_period: 10s
+
+  pds-tailscale:
+    image: ghcr.io/erikologic/caddy-tailscale:main
+    restart: unless-stopped
+    environment:
+      - TS_API_CLIENT_ID=${TAILSCALE_CLIENT_ID}
+      - TS_AUTHKEY=${TAILSCALE_CLIENT_SECRET}
+      - TAILSCALE_DOMAIN=${TAILSCALE_DOMAIN}
+      - SUBDOMAIN=pds
+      - PORT=3000
+    volumes:
+      - ./caddy/etc/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ./caddy/config/pds:/config
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080",
+        ]
+      start_period: 10s
+
+  relay-tailscale:
+    image: ghcr.io/erikologic/caddy-tailscale:main
+    restart: unless-stopped
+    environment:
+      - TS_API_CLIENT_ID=${TAILSCALE_CLIENT_ID}
+      - TS_AUTHKEY=${TAILSCALE_CLIENT_SECRET}
+      - TAILSCALE_DOMAIN=${TAILSCALE_DOMAIN}
+      - SUBDOMAIN=relay
+      - PORT=3000
+    volumes:
+      - ./caddy/etc/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ./caddy/config/relay:/config
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080",
+        ]
+      start_period: 10s
 
   test:
     image: nginx:alpine
     command: sh -c "echo '<h1>Hello from test!</h1><p>This is served on port 80</p>' > /usr/share/nginx/html/index.html && nginx -g 'daemon off;'"
+    network_mode: "service:test-tailscale"
 
   postgres:
     image: postgres:15-alpine
@@ -44,15 +127,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      plc-tailscale:
+        condition: service_healthy
+    network_mode: "service:plc-tailscale"
     healthcheck:
       test:
         [
           "CMD-SHELL",
           "wget --no-verbose --tries=1 --output-document=/dev/null http://127.0.0.1:3000/_health",
         ]
-      interval: 10s
-      timeout: 5s
-      retries: 3
       start_period: 10s
 
   pds:
@@ -78,15 +161,15 @@ services:
     depends_on:
       plc:
         condition: service_healthy
+      pds-tailscale:
+        condition: service_healthy
+    network_mode: "service:pds-tailscale"
     healthcheck:
       test:
         [
           "CMD-SHELL",
           "wget --no-verbose --tries=1 --output-document=/dev/null http://127.0.0.1:3000/xrpc/_health",
         ]
-      interval: 10s
-      timeout: 5s
-      retries: 3
       start_period: 10s
 
   relay:
@@ -109,22 +192,39 @@ services:
         condition: service_healthy
       pds:
         condition: service_healthy
+      relay-tailscale:
+        condition: service_healthy
+    network_mode: "service:relay-tailscale"
     healthcheck:
       test:
         [
           "CMD-SHELL",
           "wget --no-verbose --tries=1 --output-document=/dev/null http://127.0.0.1:3000/_health",
         ]
-      interval: 10s
-      timeout: 5s
-      retries: 3
       start_period: 10s
+
+  tailscale:
+    image: tailscale/tailscale:latest
+    environment:
+      - TS_AUTHKEY=${TAILSCALE_CLIENT_SECRET}
+      - TS_EXTRA_ARGS=--advertise-tags=tag:test
+    healthcheck:
+      test: ["CMD", "tailscale", "status"]
+    # cap_add:
+    #   - NET_ADMIN
+    #   - SYS_MODULE
+    # volumes:
+    #   - /dev/net/tun:/dev/net/tun
+    # command: tailscaled
 
   relay-subscriber:
     image: curlimages/curl:latest
     depends_on:
       relay:
         condition: service_healthy
+      tailscale:
+        condition: service_healthy
+    network_mode: "service:tailscale"
     command: >
       sh -c "sleep 5 && curl -u admin:admin123 -X POST https://relay.${TAILSCALE_DOMAIN}/admin/pds/requestCrawl -H 'Content-Type: application/json' -d '{\"hostname\": \"pds.${TAILSCALE_DOMAIN}\"}'"
 
@@ -133,18 +233,26 @@ services:
     working_dir: /app
     environment:
       - TAILSCALE_DOMAIN=${TAILSCALE_DOMAIN}
-      - NODE_ENV=production
     volumes:
+      - ./e2e:/app/e2e
+      - ./jest.config.js:/app/jest.config.js
+      - ./package-lock.json:/app/package-lock.json
       - ./package.json:/app/package.json
-      - ./test_pds_relay.mjs:/app/test_pds_relay.mjs
+      - ./tsconfig.json:/app/tsconfig.json
     depends_on:
       relay-subscriber:
         condition: service_completed_successfully
+      tailscale:
+        condition: service_healthy
+    network_mode: "service:tailscale"
     command: >
-      sh -c "npm install && sleep 10 && node test_pds_relay.mjs"
+      sh -c "npm install && npm test"
 
 volumes:
-  caddy_config:
+  test_caddy_config:
+  plc_caddy_config:
+  pds_caddy_config:
+  relay_caddy_config:
   postgres_data:
   pds_data:
   relay_data:

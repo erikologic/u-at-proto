@@ -41,10 +41,13 @@ describe("Local ATProto E2E Tests", () => {
       }
     );
 
+    // Wait for events to propagate to the relay
+    await new Promise(resolve => setTimeout(resolve, 5000));
+
     firehose.close();
 
     expect(commitEvents.length).toBeGreaterThan(0);
-    expect(commitEvents).toContain(
+    expect(commitEvents).toContainEqual(
       expect.objectContaining({
         ops: expect.arrayContaining([
           expect.objectContaining({
