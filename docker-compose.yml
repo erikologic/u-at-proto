@@ -189,6 +189,58 @@ services:
       start_period: 10s
 
   # =============================================================================
+  # JETSTREAM SERVICE
+  # =============================================================================
+  jetstream-tailscale:
+    image: ghcr.io/erikologic/caddy-tailscale:main
+    restart: unless-stopped
+    environment:
+      - TS_API_CLIENT_ID=${TAILSCALE_CLIENT_ID}
+      - TS_AUTHKEY=${TAILSCALE_CLIENT_SECRET}
+      - TAILSCALE_DOMAIN=${TAILSCALE_DOMAIN}
+      - SUBDOMAIN=jetstream-${PARTITION}
+      - PORT=6008
+    volumes:
+      - ./caddy/etc/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ./caddy/config/jetstream:/config
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080",
+        ]
+      start_period: 10s
+
+  jetstream:
+    image: ghcr.io/erikologic/jetstream:latest
+    environment:
+      - JETSTREAM_DATA_DIR=/data
+      - JETSTREAM_WS_URL=wss://relay-${PARTITION}.${TAILSCALE_DOMAIN}/xrpc/com.atproto.sync.subscribeRepos
+      - JETSTREAM_LISTEN_ADDR=:6008
+      - JETSTREAM_LIVENESS_TTL=3600s
+    volumes:
+      - jetstream_data:/data
+    depends_on:
+      jetstream-tailscale:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      relay:
+        condition: service_healthy
+    network_mode: "service:jetstream-tailscale"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --output-document=/dev/null https://jetstream-${PARTITION}.${TAILSCALE_DOMAIN}",
+        ]
+      start_period: 10s
+
+  # =============================================================================
   # PREPARATION SERVICE
   # =============================================================================
   prepare:
@@ -234,3 +286,4 @@ volumes:
   postgres_data:
   pds_data:
   relay_data:
+  jetstream_data:
