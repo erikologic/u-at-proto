@@ -92,11 +92,10 @@ class UserManager {
     return this._did;
   }
 
-  static async create(pdsUrl: string): Promise<UserManager> {
+  static async create(pdsUrl: string, username?: string): Promise<UserManager> {
     const agent = new AtpAgent({ service: pdsUrl });
 
-    const rand = Math.floor(Math.random() * 10000);
-    const name = `test${rand}`;
+    const name = `${username || "test"}${Math.floor(Math.random() * 10000)}`;
     await agent.createAccount({
       email: `${name}@mail.com`,
       password: "abc123",
@@ -178,4 +177,91 @@ describe("Local ATProto E2E Tests", () => {
       expectedJetstreamCommitWith(postText)
     );
   }, 30_000);
+});
+
+describe("Synthetic Data Generation", () => {
+  let pdsCollector: FirehoseEventCollector;
+  let relayCollector: FirehoseEventCollector;
+  let jetstreamCollector: JetstreamEventCollector;
+  let alice: UserManager;
+  let bob: UserManager;
+
+  beforeAll(async () => {
+    pdsCollector = new FirehoseEventCollector(PDS_DOMAIN);
+    relayCollector = new FirehoseEventCollector(RELAY_DOMAIN);
+    jetstreamCollector = await JetstreamEventCollector.create(JETSTREAM_DOMAIN);
+
+    alice = await UserManager.create(`https://${PDS_DOMAIN}`, "alice");
+    bob = await UserManager.create(`https://${PDS_DOMAIN}`, "bob");
+  }, 45_000);
+
+  afterAll(() => {
+    pdsCollector.stop();
+    relayCollector.stop();
+    jetstreamCollector.stop();
+  });
+
+  it("generates conversation between two users", async () => {
+    const initialEventCount = {
+      pds: pdsCollector.events.length,
+      relay: relayCollector.events.length,
+      jetstream: jetstreamCollector.events.length,
+    };
+
+    const conversation = [
+      { user: alice, message: "Hey Bob! How's the weather today?" },
+      {
+        user: bob,
+        message: "Hi Alice! It's quite sunny here. Perfect for a walk!",
+      },
+      {
+        user: alice,
+        message: "That sounds lovely! I'm stuck inside working on some code.",
+      },
+      { user: bob, message: "What are you working on? Anything interesting?" },
+      {
+        user: alice,
+        message: "Just some ATProto integration tests. Pretty cool stuff!",
+      },
+      {
+        user: bob,
+        message: "Nice! I've been curious about decentralized social networks.",
+      },
+    ];
+
+    for (const { user, message } of conversation) {
+      await user.createPost(message);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
+    const finalEventCount = {
+      pds: pdsCollector.events.length,
+      relay: relayCollector.events.length,
+      jetstream: jetstreamCollector.events.length,
+    };
+
+    const newEvents = {
+      pds: finalEventCount.pds - initialEventCount.pds,
+      relay: finalEventCount.relay - initialEventCount.relay,
+      jetstream: finalEventCount.jetstream - initialEventCount.jetstream,
+    };
+
+    expect(newEvents.pds).toBeGreaterThanOrEqual(6);
+    expect(newEvents.relay).toBeGreaterThanOrEqual(6);
+    expect(newEvents.jetstream).toBeGreaterThanOrEqual(6);
+
+    for (const { message } of conversation) {
+      expect(pdsCollector.events).toContainEqual(
+        expectFirehoseCommitWith(message)
+      );
+      expect(relayCollector.events).toContainEqual(
+        expectFirehoseCommitWith(message)
+      );
+      expect(jetstreamCollector.events).toContainEqual(
+        expectedJetstreamCommitWith(message)
+      );
+    }
+  }, 60_000);
 });

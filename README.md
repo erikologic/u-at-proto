@@ -28,6 +28,9 @@ Each service is exposed through Tailscale with automatic SSL certificate managem
 - PLC: `https://plc-{PARTITION}.{TAILSCALE_DOMAIN}`
 - PDS: `https://pds-{PARTITION}.{TAILSCALE_DOMAIN}`
 - Relay: `https://relay-{PARTITION}.{TAILSCALE_DOMAIN}`
+- Jetstream: `https://jetstream-{PARTITION}.{TAILSCALE_DOMAIN}`
+
+Those will appear in your Tailscale dashboard too.
 
 ## Local Setup
 
