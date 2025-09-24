@@ -232,13 +232,6 @@ services:
       relay:
         condition: service_healthy
     network_mode: "service:jetstream-tailscale"
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "wget --no-verbose --tries=1 --output-document=/dev/null https://jetstream-${PARTITION}.${TAILSCALE_DOMAIN}",
-        ]
-      start_period: 10s
 
   # =============================================================================
   # PREPARATION SERVICE

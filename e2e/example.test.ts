@@ -60,7 +60,7 @@ class JetstreamEventCollector {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error("Jetstream connection timeout"));
-      }, 10000);
+      }, 30000);
 
       websocket.on("open", () => {
         clearTimeout(timeout);
