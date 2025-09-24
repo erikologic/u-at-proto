@@ -1,3 +1,5 @@
+[![E2E Tests](https://github.com/erikologic/u-at-proto/actions/workflows/e2e-test.yml/badge.svg)](https://github.com/erikologic/u-at-proto/actions/workflows/e2e-test.yml)
+
 # Your UAT AT environment
 
 This project provides a complete UAT (User Acceptance Testing) environment for the AT Protocol ecosystem. It sets up a full ATProtocol network including PLC directory, Personal Data Server (PDS), and Relay services, accessible through Tailscale for secure networking.
