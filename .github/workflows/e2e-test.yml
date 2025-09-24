@@ -75,7 +75,7 @@ jobs:
           fi
 
       - name: Save certificates cache
-        if: always() && steps.cache-certs.outputs.cache-hit != 'true'
+        if: always()
         uses: actions/cache/save@v4
         with:
           path: caddy/config/certificates.tar.gz.enc
