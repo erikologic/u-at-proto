@@ -2,7 +2,7 @@
 
 # Your UAT AT environment
 
-This project provides a complete UAT (User Acceptance Testing) environment for the AT Protocol ecosystem. It sets up a full ATProtocol network including PLC directory, Personal Data Server (PDS), and Relay services, accessible through Tailscale for secure networking.
+This project provides a complete UAT environment for the AT Protocol ecosystem.
 
 ## Credits
 
@@ -10,13 +10,7 @@ The SmokeSignal team for lots of inspiration around using Tailscale to for TLS s
 
 ## Architecture
 
-The environment consists of these core services:
-
-- **PostgreSQL**: Shared database for all AT Protocol services
-- **PLC Server**: DID PLC Directory Service for decentralized identity
-- **PDS Server**: Personal Data Server for user data and content
-- **Relay Server**: Real-time message relay for the AT Protocol firehose
-
+The environment consists of various ATProto services.
 Each service is exposed through Tailscale with automatic SSL certificate management via Caddy.
 
 ## Prerequisites
