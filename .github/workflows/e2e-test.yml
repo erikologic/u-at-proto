@@ -39,11 +39,17 @@ jobs:
           CERT_ENCRYPTION_KEY: ${{ secrets.CERT_ENCRYPTION_KEY }}
         run: |
           if [ -f "caddy/config/certificates.tar.gz.enc" ]; then
+            echo "📦 Restoring cached certificates..."
             openssl enc -aes-256-cbc -d -in caddy/config/certificates.tar.gz.enc -out certificates.tar.gz -k "$CERT_ENCRYPTION_KEY"
+            echo "📋 Certificate files being restored:"
+            tar -tzf certificates.tar.gz
             tar -xzf certificates.tar.gz -C caddy/config/
             # Store hash of original certificates for comparison
             sha256sum certificates.tar.gz > original_certs_hash.txt
             rm certificates.tar.gz
+            echo "✅ Certificates restored successfully"
+          else
+            echo "ℹ️ No cached certificates found - will generate new ones"
           fi
 
       - name: Start Docker Compose services
@@ -75,23 +81,32 @@ jobs:
         run: |
           if [ -d "caddy/config" ]; then
             sudo chown -R $USER:$USER caddy/config
+            echo "🔍 Looking for certificate files to archive..."
+
             # Archive only certificate files, exclude logs and temporary files
-            find caddy/config -name "*.crt" -o -name "*.key" -o -name "*.pem" | \
-              tar -czf certificates.tar.gz --files-from=-
+            CERT_FILES=$(find caddy/config -name "*.crt" -o -name "*.key" -o -name "*.pem")
+            CERT_COUNT=$(echo "$CERT_FILES" | wc -l)
+            echo "📋 Found $CERT_COUNT certificate files:"
+            echo "$CERT_FILES"
+
+            echo "$CERT_FILES" | tar -czf certificates.tar.gz --files-from=-
 
             # Compare hashes to see if certificates changed
             echo "CERTS_CHANGED=true" >> $GITHUB_ENV
             if [ -f "original_certs_hash.txt" ]; then
               NEW_HASH=$(sha256sum certificates.tar.gz)
               OLD_HASH=$(cat original_certs_hash.txt)
+              echo "🔐 Hash comparison:"
+              echo "  Old: $OLD_HASH"
+              echo "  New: $NEW_HASH"
               if [ "$NEW_HASH" = "$OLD_HASH" ]; then
                 echo "CERTS_CHANGED=false" >> $GITHUB_ENV
-                echo "Certificates unchanged - skipping cache update"
+                echo "✅ Certificates unchanged - skipping cache update"
               else
-                echo "Certificates changed - will update cache"
+                echo "🔄 Certificates changed - will update cache"
               fi
             else
-              echo "No previous certificates - will create cache"
+              echo "🆕 No previous certificates - will create cache"
             fi
 
             # Always encrypt for potential caching
