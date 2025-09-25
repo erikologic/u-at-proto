@@ -92,6 +92,18 @@ The CI workflow (`e2e-test.yml`) automatically:
 
 The workflow runs on every push to `main` branch.
 
+### SSL Certificate Caching
+
+The environment uses Tailscale + Caddy for automatic TLS certificate management ([learn more](https://tailscale.com/kb/1190/caddy-certificates)).
+
+To avoid Let's Encrypt rate limiting, the GitHub Actions workflow implements certificate caching:
+
+- **Partition Isolation**: Each environment (`local`, `ci`, etc.) has its own certificate set
+- **Per-service Certificates**: Each service (PLC, PDS, Relay, Jetstream) gets its own certificate
+- **Local Storage**: Certificates persist on the host filesystem for local development
+- **CI Caching**: In GitHub Actions, certificates are encrypted and cached between workflow runs
+- **Immutable Strategy**: New cache artifacts are created when certificates change, always restoring from the latest available cache
+
 ## Running Tests
 
 These projects demo how to integrate a test suite with the docker compose setup.  
