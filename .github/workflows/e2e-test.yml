@@ -35,7 +35,6 @@ jobs:
             certificates-
 
       - name: Decrypt and extract certificates
-        if: steps.cache-certs.outputs.cache-hit == 'true'
         env:
           CERT_ENCRYPTION_KEY: ${{ secrets.CERT_ENCRYPTION_KEY }}
         run: |
