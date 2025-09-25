@@ -74,6 +74,15 @@ jobs:
             rm certificates.tar.gz
           fi
 
+      - name: Delete previous cache
+        if: always() && steps.cache-certs.outputs.cache-hit == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh extension install actions/gh-actions-cache
+          gh actions-cache delete "certificates" --confirm
+
       - name: Save certificates cache
         if: always()
         uses: actions/cache/save@v4
