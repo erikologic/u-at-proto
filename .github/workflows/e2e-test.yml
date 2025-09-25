@@ -43,7 +43,7 @@ jobs:
             openssl enc -aes-256-cbc -d -in caddy/config/certificates.tar.gz.enc -out certificates.tar.gz -k "$CERT_ENCRYPTION_KEY"
             echo "📋 Certificate files being restored:"
             tar -tzf certificates.tar.gz
-            tar -xzf certificates.tar.gz -C caddy/config/
+            tar -xzf certificates.tar.gz
             # Store hash of original certificates for comparison
             sha256sum certificates.tar.gz > original_certs_hash.txt
             rm certificates.tar.gz
