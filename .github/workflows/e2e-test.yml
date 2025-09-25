@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: e2e-tests
+
 env:
   PARTITION: ${{vars.PARTITION}}
 
@@ -27,7 +30,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: caddy/config/certificates.tar.gz.enc
-          key: certificates
+          key: certificates-${{ github.run_id }}
+          restore-keys: |
+            certificates-
 
       - name: Decrypt and extract certificates
         if: steps.cache-certs.outputs.cache-hit == 'true'
@@ -37,6 +42,8 @@ jobs:
           if [ -f "caddy/config/certificates.tar.gz.enc" ]; then
             openssl enc -aes-256-cbc -d -in caddy/config/certificates.tar.gz.enc -out certificates.tar.gz -k "$CERT_ENCRYPTION_KEY"
             tar -xzf certificates.tar.gz -C caddy/config/
+            # Store hash of original certificates for comparison
+            sha256sum certificates.tar.gz > original_certs_hash.txt
             rm certificates.tar.gz
           fi
 
@@ -69,26 +76,36 @@ jobs:
         run: |
           if [ -d "caddy/config" ]; then
             sudo chown -R $USER:$USER caddy/config
-            tar -czf certificates.tar.gz -C caddy/config --exclude='certificates.tar.gz.enc' .
+            # Archive only certificate files, exclude logs and temporary files
+            find caddy/config -name "*.crt" -o -name "*.key" -o -name "*.pem" | \
+              tar -czf certificates.tar.gz --files-from=-
+
+            # Compare hashes to see if certificates changed
+            echo "CERTS_CHANGED=true" >> $GITHUB_ENV
+            if [ -f "original_certs_hash.txt" ]; then
+              NEW_HASH=$(sha256sum certificates.tar.gz)
+              OLD_HASH=$(cat original_certs_hash.txt)
+              if [ "$NEW_HASH" = "$OLD_HASH" ]; then
+                echo "CERTS_CHANGED=false" >> $GITHUB_ENV
+                echo "Certificates unchanged - skipping cache update"
+              else
+                echo "Certificates changed - will update cache"
+              fi
+            else
+              echo "No previous certificates - will create cache"
+            fi
+
+            # Always encrypt for potential caching
             openssl enc -aes-256-cbc -in certificates.tar.gz -out caddy/config/certificates.tar.gz.enc -k "$CERT_ENCRYPTION_KEY"
             rm certificates.tar.gz
           fi
 
-      - name: Delete previous cache
-        if: always() && steps.cache-certs.outputs.cache-hit == 'true'
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh extension install actions/gh-actions-cache
-          gh actions-cache delete "certificates" --confirm
-
       - name: Save certificates cache
-        if: always()
+        if: always() && env.CERTS_CHANGED == 'true'
         uses: actions/cache/save@v4
         with:
           path: caddy/config/certificates.tar.gz.enc
-          key: certificates
+          key: certificates-${{ github.run_id }}
 
       - name: Stop and remove Docker Compose services
         if: always()
