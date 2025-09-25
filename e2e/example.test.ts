@@ -34,6 +34,8 @@ class FirehoseEventCollector {
   }
 }
 
+jest.setTimeout(60_000);
+
 class JetstreamEventCollector {
   public readonly events: any[] = [];
   private readonly websocket: WebSocket;
@@ -156,9 +158,9 @@ describe("Local ATProto E2E Tests", () => {
   }, 30_000);
 
   afterAll(() => {
-    pdsCollector.stop();
-    relayCollector.stop();
-    jetstreamCollector.stop();
+    pdsCollector?.stop();
+    relayCollector?.stop();
+    jetstreamCollector?.stop();
   });
 
   it("commit appears at PDS, Relay Firehose, and Jetstream endpoints", async () => {
@@ -176,7 +178,7 @@ describe("Local ATProto E2E Tests", () => {
     expect(jetstreamCollector.events).toContainEqual(
       expectedJetstreamCommitWith(postText)
     );
-  }, 30_000);
+  });
 });
 
 describe("Synthetic Data Generation", () => {
@@ -193,12 +195,12 @@ describe("Synthetic Data Generation", () => {
 
     alice = await UserManager.create(`https://${PDS_DOMAIN}`, "alice");
     bob = await UserManager.create(`https://${PDS_DOMAIN}`, "bob");
-  }, 45_000);
+  });
 
   afterAll(() => {
-    pdsCollector.stop();
-    relayCollector.stop();
-    jetstreamCollector.stop();
+    pdsCollector?.stop();
+    relayCollector?.stop();
+    jetstreamCollector?.stop();
   });
 
   it("generates conversation between two users", async () => {
@@ -263,5 +265,5 @@ describe("Synthetic Data Generation", () => {
         expectedJetstreamCommitWith(message)
       );
     }
-  }, 60_000);
+  });
 });

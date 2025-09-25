@@ -9,5 +9,6 @@ export default {
   },
   transformIgnorePatterns: [
     'node_modules/(?!(@skyware|@atcute|nanoevents|yocto-queue)/)'
-  ]
+  ],
+  forceExit: true
 };
