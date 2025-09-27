@@ -232,6 +232,13 @@ services:
       relay:
         condition: service_healthy
     network_mode: "service:jetstream-tailscale"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS https://jetstream-${PARTITION}.${TAILSCALE_DOMAIN}",
+        ]
+      start_period: 10s
 
   # =============================================================================
   # OZONE MODERATION SERVICE
@@ -368,6 +375,13 @@ services:
       ozone:
         condition: service_started
     network_mode: "service:bsky-tailscale"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --output-document=/dev/null https://bsky-${PARTITION}.${TAILSCALE_DOMAIN}",
+        ]
+      start_period: 10s
 
   # =============================================================================
   # PREPARATION SERVICE
@@ -404,6 +418,10 @@ services:
     depends_on:
       prepare:
         condition: service_started
+      jetstream:
+        condition: service_healthy
+      bsky:
+        condition: service_healthy
     command: >
       sh -c "npm install && npm test"
 
