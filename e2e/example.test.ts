@@ -16,6 +16,7 @@ if (!PARTITION) {
 const RELAY_DOMAIN = `relay-${PARTITION}.${TAILSCALE_DOMAIN}`;
 const PDS_DOMAIN = `pds-${PARTITION}.${TAILSCALE_DOMAIN}`;
 const JETSTREAM_DOMAIN = `jetstream-${PARTITION}.${TAILSCALE_DOMAIN}`;
+const BSKY_DOMAIN = `bsky-${PARTITION}.${TAILSCALE_DOMAIN}`;
 
 class FirehoseEventCollector {
   public readonly events: any[] = [];
@@ -82,26 +83,21 @@ class JetstreamEventCollector {
 }
 
 class UserManager {
-  private readonly agent: AtpAgent;
-  private readonly _did: string;
-
-  private constructor(agent: AtpAgent, did: string) {
-    this.agent = agent;
-    this._did = did;
-  }
-
-  get did(): string {
-    return this._did;
-  }
+  private constructor(
+    public agent: AtpAgent,
+    public did: string,
+    public handle: string
+  ) {}
 
   static async create(pdsUrl: string, username?: string): Promise<UserManager> {
     const agent = new AtpAgent({ service: pdsUrl });
 
     const name = `${username || "test"}${Math.floor(Math.random() * 10000)}`;
+    const handle = `${name}.${PDS_DOMAIN}`;
     await agent.createAccount({
       email: `${name}@mail.com`,
       password: "abc123",
-      handle: `${name}.${PDS_DOMAIN}`,
+      handle,
     });
 
     const did = agent.session?.did;
@@ -109,7 +105,7 @@ class UserManager {
       throw new Error("Failed to create account - no DID received");
     }
 
-    return new UserManager(agent, did);
+    return new UserManager(agent, did, handle);
   }
 
   async createPost(text: string): Promise<void> {
@@ -178,6 +174,14 @@ describe("Local ATProto E2E Tests", () => {
     expect(jetstreamCollector.events).toContainEqual(
       expectedJetstreamCommitWith(postText)
     );
+
+    const bskyAgent = new AtpAgent({ service: `https://${BSKY_DOMAIN}` });
+    const authorFeed = await bskyAgent.app.bsky.feed.getAuthorFeed({
+      actor: userManager.did,
+    });
+
+    expect(authorFeed.data.feed.length).toBeGreaterThan(0);
+    expect(authorFeed.data.feed[0].post.record.text).toBe(postText);
   });
 });
 

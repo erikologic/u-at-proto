@@ -234,6 +234,142 @@ services:
     network_mode: "service:jetstream-tailscale"
 
   # =============================================================================
+  # OZONE MODERATION SERVICE
+  # =============================================================================
+  ozone-tailscale:
+    image: ghcr.io/erikologic/caddy-tailscale:main
+    restart: unless-stopped
+    environment:
+      - TS_API_CLIENT_ID=${TAILSCALE_CLIENT_ID}
+      - TS_AUTHKEY=${TAILSCALE_CLIENT_SECRET}
+      - TAILSCALE_DOMAIN=${TAILSCALE_DOMAIN}
+      - SUBDOMAIN=ozone-${PARTITION}
+      - PORT=3000
+    volumes:
+      - ./caddy/etc/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ./caddy/config/ozone:/config
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080",
+        ]
+      start_period: 10s
+
+  ozone:
+    image: ghcr.io/bluesky-social/ozone:latest
+    environment:
+      - OZONE_DB_POSTGRES_URL=postgres://ozone:ozone@postgres:5432/ozone
+      - OZONE_DB_MIGRATE=1
+      - OZONE_SERVER_DID=did:web:ozone-${PARTITION}.${TAILSCALE_DOMAIN}
+      - OZONE_PUBLIC_URL=https://ozone-${PARTITION}.${TAILSCALE_DOMAIN}
+      - OZONE_DID_PLC_URL=https://plc-${PARTITION}.${TAILSCALE_DOMAIN}
+      - OZONE_APPVIEW_URL=https://bsky-${PARTITION}.${TAILSCALE_DOMAIN}
+      - OZONE_APPVIEW_DID=did:web:bsky-${PARTITION}.${TAILSCALE_DOMAIN}
+      - OZONE_ADMIN_PASSWORD=admin123
+      - OZONE_ADMIN_DIDS=did:web:ozone-${PARTITION}.${TAILSCALE_DOMAIN}
+      - OZONE_SIGNING_KEY_HEX=da7a7d92e8d8f8e6f2a5a1b8c4d3e2f1a9b7c5d4e3f2a8b6c9d7e5f3a1b4c6d8
+      - NODE_ENV=production
+      - LOG_ENABLED=true
+      - LOG_LEVEL=info
+      - PORT=3000
+    volumes:
+      - ozone_data:/data
+    depends_on:
+      ozone-tailscale:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      plc:
+        condition: service_healthy
+    network_mode: "service:ozone-tailscale"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --output-document=/dev/null https://ozone-${PARTITION}.${TAILSCALE_DOMAIN}",
+        ]
+      start_period: 10s
+
+  # =============================================================================
+  # BSKY SERVICE
+  # =============================================================================
+  bsky-tailscale:
+    image: ghcr.io/erikologic/caddy-tailscale:main
+    restart: unless-stopped
+    environment:
+      - TS_API_CLIENT_ID=${TAILSCALE_CLIENT_ID}
+      - TS_AUTHKEY=${TAILSCALE_CLIENT_SECRET}
+      - TAILSCALE_DOMAIN=${TAILSCALE_DOMAIN}
+      - SUBDOMAIN=bsky-${PARTITION}
+      - PORT=2584
+    volumes:
+      - ./caddy/etc/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ./caddy/config/bsky:/config
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080",
+        ]
+      start_period: 10s
+  redis:
+    image: redis:7-bookworm
+    restart: always
+
+  bsky:
+    image: ghcr.io/erikologic/atproto:bsky-latest
+    environment:
+      - BSKY_ADMIN_PASSWORDS=password123
+      - BSKY_BLOB_CACHE_LOC=/cache/
+      - BSKY_BSYNC_HTTP_VERSION=1.1
+      - BSKY_BSYNC_PORT=3002
+      - BSKY_BSYNC_URL=http://localhost:3002
+      - BSKY_DATAPLANE_HTTP_VERSION=1.1
+      - BSKY_DATAPLANE_PORT=3001
+      - BSKY_DATAPLANE_URLS=http://localhost:3001
+      - BSKY_DB_POSTGRES_SCHEMA=bsky
+      - BSKY_DB_POSTGRES_URL=postgres://bsky:bsky@postgres:5432/bsky
+      - BSKY_DB_POOL_SIZE=100
+      - BSKY_DID_PLC_URL=https://plc-${PARTITION}.${TAILSCALE_DOMAIN}
+      - BSKY_PUBLIC_URL=https://bsky-${PARTITION}.${TAILSCALE_DOMAIN}
+      - BSKY_REPO_PROVIDER=wss://relay-${PARTITION}.${TAILSCALE_DOMAIN}
+      - BSKY_SERVER_DID=did:web:bsky-${PARTITION}.${TAILSCALE_DOMAIN}
+      - BSKY_SERVICE_SIGNING_KEY=da7a7d92e8d8f8e6f2a5a1b8c4d3e2f1a9b7c5d4e3f2a8b6c9d7e5f3a1b4c6d8
+      - BSKY_INDEXED_AT_EPOCH=${BSKY_INDEXED_AT_EPOCH:-2022-11-17T00:35:16.391+00:00}
+      - BSKY_VIDEO_PLAYLIST_URL_PATTERN=https://video.bsky.app/watch/%s/%s/playlist.m3u8
+      - BSKY_VIDEO_THUMBNAIL_URL_PATTERN=https://video.bsky.app/watch/%s/%s/thumbnail.jpg
+      - MOD_SERVICE_DID=did:web:ozone-${PARTITION}.${TAILSCALE_DOMAIN}
+      - CLUSTER_WORKER_COUNT=3
+      - DEBUG_MODE=1
+      - LOG_DESTINATION=1
+      - LOG_ENABLED=true
+      - LOG_LEVEL=trace
+      - NODE_ENV=${NODE_ENV:-production}
+      - NODE_OPTIONS=--max-old-space-size=32768
+      - REDIS_HOST=redis
+      - PORT=2584
+      - DD_AGENT_HOST=otel
+    depends_on:
+      bsky-tailscale:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      relay:
+        condition: service_healthy
+      ozone:
+        condition: service_started
+    network_mode: "service:bsky-tailscale"
+
+  # =============================================================================
   # PREPARATION SERVICE
   # =============================================================================
   prepare:
@@ -267,7 +403,7 @@ services:
       - ./tsconfig.json:/app/tsconfig.json
     depends_on:
       prepare:
-        condition: service_completed_successfully
+        condition: service_started
     command: >
       sh -c "npm install && npm test"
 
@@ -280,3 +416,4 @@ volumes:
   pds_data:
   relay_data:
   jetstream_data:
+  ozone_data:
