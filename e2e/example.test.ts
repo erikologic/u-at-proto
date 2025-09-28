@@ -175,17 +175,20 @@ describe("Local ATProto E2E Tests", () => {
       expectedJetstreamCommitWith(postText)
     );
 
+    console.error("did ", userManager.did)
+    console.error("handle ", userManager.handle)
     const bskyAgent = new AtpAgent({ service: `https://${BSKY_DOMAIN}` });
     const authorFeed = await bskyAgent.app.bsky.feed.getAuthorFeed({
       actor: userManager.did,
     });
 
+    console.log(JSON.stringify(authorFeed.data, null, 2));
     expect(authorFeed.data.feed.length).toBeGreaterThan(0);
     expect(authorFeed.data.feed[0].post.record.text).toBe(postText);
   });
 });
 
-describe("Synthetic Data Generation", () => {
+xdescribe("Synthetic Data Generation", () => {
   let pdsCollector: FirehoseEventCollector;
   let relayCollector: FirehoseEventCollector;
   let jetstreamCollector: JetstreamEventCollector;

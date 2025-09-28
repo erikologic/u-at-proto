@@ -383,6 +383,53 @@ services:
         ]
       start_period: 10s
 
+
+  # =============================================================================
+  # SOCIAL-APP SERVICE
+  # =============================================================================
+  social-tailscale:
+    image: ghcr.io/erikologic/caddy-tailscale:main
+    restart: unless-stopped
+    environment:
+      - TS_API_CLIENT_ID=${TAILSCALE_CLIENT_ID}
+      - TS_AUTHKEY=${TAILSCALE_CLIENT_SECRET}
+      - TAILSCALE_DOMAIN=${TAILSCALE_DOMAIN}
+      - SUBDOMAIN=social-${PARTITION}
+      - PORT=8100
+    volumes:
+      - ./caddy/etc/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ./caddy/config/social:/config
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080",
+        ]
+      start_period: 10s
+
+  social:
+    image: social-app-test
+    entrypoint: /usr/bin/bskyweb serve --appview-host=https://bsky-${PARTITION}.${TAILSCALE_DOMAIN}
+    environment:
+      - EXPO_PUBLIC_APPVIEW_DOMAIN=bsky-${PARTITION}.${TAILSCALE_DOMAIN}
+    depends_on:
+      social-tailscale:
+        condition: service_healthy
+      bsky:
+        condition: service_healthy
+    network_mode: "service:social-tailscale"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --output-document=/dev/null https://social-${PARTITION}.${TAILSCALE_DOMAIN}",
+        ]
+      start_period: 10s
+
   # =============================================================================
   # PREPARATION SERVICE
   # =============================================================================
