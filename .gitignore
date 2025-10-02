@@ -1,3 +1,3 @@
 .env
-caddy/config/
 node_modules/
+traefik/certs/

@@ -3,20 +3,15 @@ import { Firehose } from "@skyware/firehose";
 import WebSocket from "ws";
 import "dotenv/config";
 
-const TAILSCALE_DOMAIN = process.env.TAILSCALE_DOMAIN;
-if (!TAILSCALE_DOMAIN) {
+const DOMAIN = process.env.DOMAIN;
+if (!DOMAIN) {
   throw new Error("TAILSCALE_DOMAIN env var is required");
 }
 
-const PARTITION = process.env.PARTITION;
-if (!PARTITION) {
-  throw new Error("PARTITION env var is required");
-}
-
-const RELAY_DOMAIN = `relay-${PARTITION}.${TAILSCALE_DOMAIN}`;
-const PDS_DOMAIN = `pds-${PARTITION}.${TAILSCALE_DOMAIN}`;
-const JETSTREAM_DOMAIN = `jetstream-${PARTITION}.${TAILSCALE_DOMAIN}`;
-const BSKY_DOMAIN = `bsky-${PARTITION}.${TAILSCALE_DOMAIN}`;
+const RELAY_DOMAIN = `relay.${DOMAIN}`;
+const PDS_DOMAIN = `pds.${DOMAIN}`;
+const JETSTREAM_DOMAIN = `jetstream.${DOMAIN}`;
+const BSKY_DOMAIN = `bsky.${DOMAIN}`;
 
 class FirehoseEventCollector {
   public readonly events: any[] = [];
@@ -104,6 +99,16 @@ class UserManager {
     if (!did) {
       throw new Error("Failed to create account - no DID received");
     }
+
+    await agent.com.atproto.repo.putRecord({
+      repo: did,
+      collection: "app.bsky.actor.profile",
+      rkey: "self",
+      record: {
+        $type: "app.bsky.actor.profile",
+        displayName: name,
+      },
+    });
 
     return new UserManager(agent, did, handle);
   }

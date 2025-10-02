@@ -21,9 +21,7 @@ jobs:
       - name: Tailscale
         uses: tailscale/github-action@v3
         with:
-          oauth-client-id: ${{ secrets.TAILSCALE_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TAILSCALE_CLIENT_SECRET }}
-          tags: tag:test
+          authkey: ${{ secrets.TS_AUTHKEY }}
 
       - name: Restore certificates cache
         id: cache-certs
@@ -54,24 +52,27 @@ jobs:
 
       - name: Start Docker Compose services
         env:
-          TAILSCALE_CLIENT_ID: ${{ secrets.TAILSCALE_CLIENT_ID }}
-          TAILSCALE_CLIENT_SECRET: ${{ secrets.TAILSCALE_CLIENT_SECRET }}
-          TAILSCALE_DOMAIN: ${{ secrets.TAILSCALE_DOMAIN }}
+          TS_AUTHKEY: ${{secrets.TS_AUTHKEY}}
+          DOMAIN: ${{secrets.DOMAIN}}
+          CF_API_EMAIL: ${{secrets.CF_API_EMAIL}}
+          CF_DNS_API_TOKEN: ${{secrets.CF_DNS_API_TOKEN}}
         run: docker compose up -d
 
       - name: Run the E2E tests
         env:
-          TAILSCALE_CLIENT_ID: ${{ secrets.TAILSCALE_CLIENT_ID }}
-          TAILSCALE_CLIENT_SECRET: ${{ secrets.TAILSCALE_CLIENT_SECRET }}
-          TAILSCALE_DOMAIN: ${{ secrets.TAILSCALE_DOMAIN }}
+          TS_AUTHKEY: ${{secrets.TS_AUTHKEY}}
+          DOMAIN: ${{secrets.DOMAIN}}
+          CF_API_EMAIL: ${{secrets.CF_API_EMAIL}}
+          CF_DNS_API_TOKEN: ${{secrets.CF_DNS_API_TOKEN}}
         run: docker compose --profile test run --rm e2e-tests
 
       - name: Show logs
         if: always()
         env:
-          TAILSCALE_CLIENT_ID: ${{ secrets.TAILSCALE_CLIENT_ID }}
-          TAILSCALE_CLIENT_SECRET: ${{ secrets.TAILSCALE_CLIENT_SECRET }}
-          TAILSCALE_DOMAIN: ${{ secrets.TAILSCALE_DOMAIN }}
+          TS_AUTHKEY: ${{secrets.TS_AUTHKEY}}
+          DOMAIN: ${{secrets.DOMAIN}}
+          CF_API_EMAIL: ${{secrets.CF_API_EMAIL}}
+          CF_DNS_API_TOKEN: ${{secrets.CF_DNS_API_TOKEN}}
         run: docker compose logs -n all
 
       - name: Compress and encrypt certificates
