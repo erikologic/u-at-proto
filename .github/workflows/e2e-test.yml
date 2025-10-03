@@ -66,14 +66,14 @@ jobs:
           TS_AUTHKEY: ${{secrets.TS_AUTHKEY}}
           CF_API_EMAIL: ${{secrets.CF_API_EMAIL}}
           CF_DNS_API_TOKEN: ${{secrets.CF_DNS_API_TOKEN}}
-        run: docker compose --profile test run --rm e2e-jest
+        run: docker compose --profile test run --rm --no-deps e2e-jest
 
       - name: Run Playwright E2E tests
         env:
           TS_AUTHKEY: ${{secrets.TS_AUTHKEY}}
           CF_API_EMAIL: ${{secrets.CF_API_EMAIL}}
           CF_DNS_API_TOKEN: ${{secrets.CF_DNS_API_TOKEN}}
-        run: docker compose --profile test run --rm e2e-playwright
+        run: docker compose --profile test run --rm --no-deps  e2e-playwright
 
       - name: Upload Playwright report
         if: always()
