@@ -14,7 +14,7 @@ if [ -z "$TAILSCALE_IP" ]; then
   exit 1
 fi
 
-echo "Updating Cloudflare DNS A record for *.${DOMAIN} to ${TAILSCALE_IP}"
+echo "Updating Cloudflare DNS A record for *.${PARTITION}.${DOMAIN} to ${TAILSCALE_IP}"
 
 ZONE_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=${DOMAIN#*.}" \
   -H "Authorization: Bearer ${CF_DNS_API_TOKEN}" \
@@ -42,7 +42,7 @@ fi
 
 printf "\nDNS record updated successfully\n"
 
-echo "Updating Cloudflare DNS A record for *.pds.${DOMAIN} to ${TAILSCALE_IP}"
+echo "Updating Cloudflare DNS A record for *.pds.${PARTITION}.${DOMAIN} to ${TAILSCALE_IP}"
 
 PDS_SUBDOMAIN="*.pds.${DOMAIN%%.*}"
 

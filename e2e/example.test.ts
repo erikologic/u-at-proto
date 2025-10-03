@@ -5,13 +5,17 @@ import "dotenv/config";
 
 const DOMAIN = process.env.DOMAIN;
 if (!DOMAIN) {
-  throw new Error("TAILSCALE_DOMAIN env var is required");
+  throw new Error("DOMAIN env var is required");
+}
+const PARTITION = process.env.PARTITION;
+if (!PARTITION) {
+  throw new Error("PARTITION env var is required");
 }
 
-const RELAY_DOMAIN = `relay.${DOMAIN}`;
-const PDS_DOMAIN = `pds.${DOMAIN}`;
-const JETSTREAM_DOMAIN = `jetstream.${DOMAIN}`;
-const BSKY_DOMAIN = `bsky.${DOMAIN}`;
+const RELAY_DOMAIN = `relay.${PARTITION}.${DOMAIN}`;
+const PDS_DOMAIN = `pds.${PARTITION}.${DOMAIN}`;
+const JETSTREAM_DOMAIN = `jetstream.${PARTITION}.${DOMAIN}`;
+const BSKY_DOMAIN = `bsky.${PARTITION}.${DOMAIN}`;
 
 class FirehoseEventCollector {
   public readonly events: any[] = [];
@@ -52,7 +56,7 @@ class JetstreamEventCollector {
 
   static async create(domain: string): Promise<JetstreamEventCollector> {
     const websocket = new WebSocket(
-      `wss://${domain}/subscribe?wantedCollections=app.bsky.feed.post`
+      `wss://${PARTITION}.${DOMAIN}/subscribe?wantedCollections=app.bsky.feed.post`
     );
 
     return new Promise((resolve, reject) => {
@@ -180,8 +184,8 @@ describe("Local ATProto E2E Tests", () => {
       expectedJetstreamCommitWith(postText)
     );
 
-    console.error("did ", userManager.did)
-    console.error("handle ", userManager.handle)
+    console.error("did ", userManager.did);
+    console.error("handle ", userManager.handle);
     const bskyAgent = new AtpAgent({ service: `https://${BSKY_DOMAIN}` });
     const authorFeed = await bskyAgent.app.bsky.feed.getAuthorFeed({
       actor: userManager.did,

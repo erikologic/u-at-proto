@@ -9,7 +9,7 @@ services:
       - TS_EXTRA_ARGS=--advertise-tags=tag:${TS_TAG}
       - TS_STATE_DIR=/var/lib/tailscale
       - TS_USERSPACE=false
-      - TS_HOSTNAME=traefik.${DOMAIN}
+      - TS_HOSTNAME=traefik-${PARTITION}
     volumes:
       - tailscale-traefik-state:/var/lib/tailscale
       - /dev/net/tun:/dev/net/tun
@@ -25,7 +25,7 @@ services:
     network_mode: service:tailscale-traefik
     environment:
       - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
-      - DOMAIN=${DOMAIN}
+      - DOMAIN=${PARTITION}.${DOMAIN}
       - TS_STATE_DIR=/var/lib/tailscale
     volumes:
       - ./update-dns.sh:/update-dns.sh:ro
@@ -70,12 +70,12 @@ services:
       - --entrypoints.websecure.address=:443
       - --entrypoints.websecure.http.tls=true
       - --entrypoints.websecure.http.tls.certResolver=letsencrypt
-      - --entrypoints.websecure.http.tls.domains[0].main=${DOMAIN}
-      - --entrypoints.websecure.http.tls.domains[0].sans=*.${DOMAIN}
+      - --entrypoints.websecure.http.tls.domains[0].main=${PARTITION}.${DOMAIN}
+      - --entrypoints.websecure.http.tls.domains[0].sans=*.${PARTITION}.${DOMAIN}
       - --log.level=DEBUG
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.traefik.rule=Host(`traefik.${DOMAIN}`)"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.${PARTITION}.${DOMAIN}`)"
       - "traefik.http.routers.traefik.entrypoints=websecure"
       - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
       - "traefik.http.routers.traefik.service=api@internal"
@@ -100,11 +100,14 @@ services:
     network_mode: service:tailscale-traefik
     command: sleep infinity
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsSL --max-time 10 https://traefik.${DOMAIN}"]
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsSL --max-time 10 https://traefik.${PARTITION}.${DOMAIN}",
+        ]
       interval: 30s
       timeout: 10s
       retries: 10
-
 
   # whoami:
   #   image: traefik/whoami
@@ -118,7 +121,7 @@ services:
   #       condition: service_completed_successfully
   #   labels:
   #     - "traefik.enable=true"
-  #     - "traefik.http.routers.whoami.rule=Host(`whoami.${DOMAIN}`)"
+  #     - "traefik.http.routers.whoami.rule=Host(`whoami.${PARTITION}.${DOMAIN}`)"
   #     - "traefik.http.routers.whoami.entrypoints=websecure"
   #     - "traefik.http.routers.whoami.tls.certresolver=letsencrypt"
   #     - "traefik.http.services.whoami.loadbalancer.server.port=8081"
@@ -161,7 +164,7 @@ services:
   #       condition: service_healthy
   #   labels:
   #     - "traefik.enable=true"
-  #     - "traefik.http.routers.plc.rule=Host(`plc.${DOMAIN}`)"
+  #     - "traefik.http.routers.plc.rule=Host(`plc.${PARTITION}.${DOMAIN}`)"
   #     - "traefik.http.routers.plc.entrypoints=websecure"
   #     - "traefik.http.routers.plc.tls.certresolver=letsencrypt"
   #     - "traefik.http.services.plc.loadbalancer.server.port=3000"
@@ -187,8 +190,8 @@ services:
   #     PDS_ADMIN_PASSWORD: admin123
   #     PDS_BLOBSTORE_DISK_LOCATION: /app/data/blobs
   #     PDS_DATA_DIRECTORY: /app/data
-  #     PDS_DID_PLC_URL: https://plc.${DOMAIN}
-  #     PDS_HOSTNAME: pds.${DOMAIN}
+  #     PDS_DID_PLC_URL: https://plc.${PARTITION}.${DOMAIN}
+  #     PDS_HOSTNAME: pds.${PARTITION}.${DOMAIN}
   #     PDS_JWT_SECRET: dev-secret-change-in-production
   #     PDS_PORT: 3000
   #     PDS_PLC_ROTATION_KEY_K256_PRIVATE_KEY_HEX: da7a7d92e8d8f8e6f2a5a1b8c4d3e2f1a9b7c5d4e3f2a8b6c9d7e5f3a1b4c6d8
@@ -196,8 +199,8 @@ services:
   #     PDS_DISABLE_SSRF_PROTECTION: true
   #     PDS_DEV_MODE: true
   #     PDS_INVITE_REQUIRED: false
-  #     PDS_BSKY_APP_VIEW_URL: https://bsky.${DOMAIN}
-  #     PDS_BSKY_APP_VIEW_DID: did:web:bsky.${DOMAIN}
+  #     PDS_BSKY_APP_VIEW_URL: https://bsky.${PARTITION}.${DOMAIN}
+  #     PDS_BSKY_APP_VIEW_DID: did:web:bsky.${PARTITION}.${DOMAIN}
   #     LOG_ENABLED: "true"
   #     LOG_LEVEL: "debug"
   #   volumes:
@@ -209,10 +212,10 @@ services:
   #       condition: service_healthy
   #   labels:
   #     - "traefik.enable=true"
-  #     - "traefik.http.routers.pds.rule=Host(`pds.${DOMAIN}`) || HostRegexp(`^.+\\.pds\\.${DOMAIN}$$`)"
+  #     - "traefik.http.routers.pds.rule=Host(`pds.${PARTITION}.${DOMAIN}`) || HostRegexp(`^.+\\.pds\\.${PARTITION}.${DOMAIN}$$`)"
   #     - "traefik.http.routers.pds.entrypoints=websecure"
   #     - "traefik.http.routers.pds.tls.certresolver=letsencrypt"
-  #     - "traefik.http.routers.pds.tls.domains[0].main=*.pds.${DOMAIN}"
+  #     - "traefik.http.routers.pds.tls.domains[0].main=*.pds.${PARTITION}.${DOMAIN}"
   #     - "traefik.http.services.pds.loadbalancer.server.port=3000"
   #   healthcheck:
   #     test:
@@ -233,7 +236,7 @@ services:
   #   image: ghcr.io/erikologic/indigo:relay-latest
   #   environment:
   #     DATABASE_URL: postgres://relay:relay@postgres:5432/relay
-  #     RELAY_PLC_HOST: https://plc.${DOMAIN}
+  #     RELAY_PLC_HOST: https://plc.${PARTITION}.${DOMAIN}
   #     RELAY_ADMIN_PASSWORD: admin123
   #     RELAY_PERSIST_DIR: /data/relay/persist
   #     RELAY_ALLOW_INSECURE_HOSTS: "true"
@@ -253,7 +256,7 @@ services:
   #       condition: service_healthy
   #   labels:
   #     - "traefik.enable=true"
-  #     - "traefik.http.routers.relay.rule=Host(`relay.${DOMAIN}`)"
+  #     - "traefik.http.routers.relay.rule=Host(`relay.${PARTITION}.${DOMAIN}`)"
   #     - "traefik.http.routers.relay.entrypoints=websecure"
   #     - "traefik.http.routers.relay.tls.certresolver=letsencrypt"
   #     - "traefik.http.services.relay.loadbalancer.server.port=3000"
@@ -276,7 +279,7 @@ services:
   #   image: ghcr.io/erikologic/jetstream:latest
   #   environment:
   #     - JETSTREAM_DATA_DIR=/data
-  #     - JETSTREAM_WS_URL=wss://relay.${DOMAIN}/xrpc/com.atproto.sync.subscribeRepos
+  #     - JETSTREAM_WS_URL=wss://relay.${PARTITION}.${DOMAIN}/xrpc/com.atproto.sync.subscribeRepos
   #     - JETSTREAM_LISTEN_ADDR=:6008
   #     - JETSTREAM_LIVENESS_TTL=3600s
   #   volumes:
@@ -290,7 +293,7 @@ services:
   #       condition: service_healthy
   #   labels:
   #     - "traefik.enable=true"
-  #     - "traefik.http.routers.jetstream.rule=Host(`jetstream.${DOMAIN}`)"
+  #     - "traefik.http.routers.jetstream.rule=Host(`jetstream.${PARTITION}.${DOMAIN}`)"
   #     - "traefik.http.routers.jetstream.entrypoints=websecure"
   #     - "traefik.http.routers.jetstream.tls.certresolver=letsencrypt"
   #     - "traefik.http.services.jetstream.loadbalancer.server.port=6008"
@@ -310,13 +313,13 @@ services:
   #   environment:
   #     - OZONE_DB_POSTGRES_URL=postgres://ozone:ozone@postgres:5432/ozone
   #     - OZONE_DB_MIGRATE=1
-  #     - OZONE_SERVER_DID=did:web:ozone.${DOMAIN}
-  #     - OZONE_PUBLIC_URL=https://ozone.${DOMAIN}
-  #     - OZONE_DID_PLC_URL=https://plc.${DOMAIN}
-  #     - OZONE_APPVIEW_URL=https://bsky.${DOMAIN}
-  #     - OZONE_APPVIEW_DID=did:web:bsky.${DOMAIN}
+  #     - OZONE_SERVER_DID=did:web:ozone.${PARTITION}.${DOMAIN}
+  #     - OZONE_PUBLIC_URL=https://ozone.${PARTITION}.${DOMAIN}
+  #     - OZONE_DID_PLC_URL=https://plc.${PARTITION}.${DOMAIN}
+  #     - OZONE_APPVIEW_URL=https://bsky.${PARTITION}.${DOMAIN}
+  #     - OZONE_APPVIEW_DID=did:web:bsky.${PARTITION}.${DOMAIN}
   #     - OZONE_ADMIN_PASSWORD=admin123
-  #     - OZONE_ADMIN_DIDS=did:web:ozone.${DOMAIN}
+  #     - OZONE_ADMIN_DIDS=did:web:ozone.${PARTITION}.${DOMAIN}
   #     - OZONE_SIGNING_KEY_HEX=da7a7d92e8d8f8e6f2a5a1b8c4d3e2f1a9b7c5d4e3f2a8b6c9d7e5f3a1b4c6d8
   #     - NODE_ENV=production
   #     - LOG_ENABLED=true
@@ -333,7 +336,7 @@ services:
   #       condition: service_healthy
   #   labels:
   #     - "traefik.enable=true"
-  #     - "traefik.http.routers.ozone.rule=Host(`ozone.${DOMAIN}`)"
+  #     - "traefik.http.routers.ozone.rule=Host(`ozone.${PARTITION}.${DOMAIN}`)"
   #     - "traefik.http.routers.ozone.entrypoints=websecure"
   #     - "traefik.http.routers.ozone.tls.certresolver=letsencrypt"
   #     - "traefik.http.services.ozone.loadbalancer.server.port=3000"
@@ -382,15 +385,15 @@ services:
   #     - BSKY_DB_POSTGRES_SCHEMA=bsky
   #     - BSKY_DB_POSTGRES_URL=postgres://bsky:bsky@postgres:5432/bsky
   #     - BSKY_DB_POOL_SIZE=100
-  #     - BSKY_DID_PLC_URL=https://plc.${DOMAIN}
-  #     - BSKY_PUBLIC_URL=https://bsky.${DOMAIN}
-  #     - BSKY_REPO_PROVIDER=wss://relay.${DOMAIN}
-  #     - BSKY_SERVER_DID=did:web:bsky.${DOMAIN}
+  #     - BSKY_DID_PLC_URL=https://plc.${PARTITION}.${DOMAIN}
+  #     - BSKY_PUBLIC_URL=https://bsky.${PARTITION}.${DOMAIN}
+  #     - BSKY_REPO_PROVIDER=wss://relay.${PARTITION}.${DOMAIN}
+  #     - BSKY_SERVER_DID=did:web:bsky.${PARTITION}.${DOMAIN}
   #     - BSKY_SERVICE_SIGNING_KEY=da7a7d92e8d8f8e6f2a5a1b8c4d3e2f1a9b7c5d4e3f2a8b6c9d7e5f3a1b4c6d8
   #     - BSKY_INDEXED_AT_EPOCH=${BSKY_INDEXED_AT_EPOCH:-2022-11-17T00:35:16.391+00:00}
   #     - BSKY_VIDEO_PLAYLIST_URL_PATTERN=https://video.bsky.app/watch/%s/%s/playlist.m3u8
   #     - BSKY_VIDEO_THUMBNAIL_URL_PATTERN=https://video.bsky.app/watch/%s/%s/thumbnail.jpg
-  #     - MOD_SERVICE_DID=did:web:ozone.${DOMAIN}
+  #     - MOD_SERVICE_DID=did:web:ozone.${PARTITION}.${DOMAIN}
   #     - CLUSTER_WORKER_COUNT=3
   #     - DEBUG_MODE=1
   #     - LOG_DESTINATION=1
@@ -417,7 +420,7 @@ services:
   #       condition: service_started
   #   labels:
   #     - "traefik.enable=true"
-  #     - "traefik.http.routers.bsky.rule=Host(`bsky.${DOMAIN}`)"
+  #     - "traefik.http.routers.bsky.rule=Host(`bsky.${PARTITION}.${DOMAIN}`)"
   #     - "traefik.http.routers.bsky.entrypoints=websecure"
   #     - "traefik.http.routers.bsky.tls.certresolver=letsencrypt"
   #     - "traefik.http.services.bsky.loadbalancer.server.port=2584"
@@ -442,7 +445,7 @@ services:
   #       condition: service_healthy
   #   working_dir: /app
   #   environment:
-  #     - DOMAIN=${DOMAIN}
+  #     - DOMAIN=${PARTITION}.${DOMAIN}
   #   volumes:
   #     - ./prepare.sh:/app/prepare.sh:ro
   #   command: sh /app/prepare.sh
@@ -468,13 +471,13 @@ services:
   #     - FEEDGEN_PORT=3000
   #     - FEEDGEN_LISTENHOST=0.0.0.0
   #     - FEEDGEN_SQLITE_LOCATION=/data/db.sqlite
-  #     - FEEDGEN_SUBSCRIPTION_ENDPOINT=wss://relay.${DOMAIN}
-  #     - FEEDGEN_HOSTNAME=feedgen.${DOMAIN}
+  #     - FEEDGEN_SUBSCRIPTION_ENDPOINT=wss://relay.${PARTITION}.${DOMAIN}
+  #     - FEEDGEN_HOSTNAME=feedgen.${PARTITION}.${DOMAIN}
   #     - FEEDGEN_SUBSCRIPTION_RECONNECT_DELAY=3000
   #     - AUTO_PUBLISH=true
-  #     - PUBLISH_HANDLE=feedgen.pds.${DOMAIN}
+  #     - PUBLISH_HANDLE=feedgen.pds.${PARTITION}.${DOMAIN}
   #     - PUBLISH_PASSWORD=feedgen-password-123
-  #     - PUBLISH_SERVICE=https://pds.${DOMAIN}
+  #     - PUBLISH_SERVICE=https://pds.${PARTITION}.${DOMAIN}
   #     - PUBLISH_RECORD_NAME=whats-hot
   #     - PUBLISH_DISPLAY_NAME=What's Hot
   #     - PUBLISH_DESCRIPTION=Local feed showing recent posts
@@ -493,7 +496,7 @@ services:
   #       condition: service_healthy
   #   labels:
   #     - "traefik.enable=true"
-  #     - "traefik.http.routers.feedgen.rule=Host(`feedgen.${DOMAIN}`)"
+  #     - "traefik.http.routers.feedgen.rule=Host(`feedgen.${PARTITION}.${DOMAIN}`)"
   #     - "traefik.http.routers.feedgen.entrypoints=websecure"
   #     - "traefik.http.routers.feedgen.tls.certresolver=letsencrypt"
   #     - "traefik.http.services.feedgen.loadbalancer.server.port=3000"
@@ -512,8 +515,8 @@ services:
   #   image: ghcr.io/erikologic/social-app:latest
   #   entrypoint: ["/entrypoint.sh"]
   #   environment:
-  #     - ATP_APPVIEW_HOST=https://bsky.${DOMAIN}
-  #     - ATP_PUBLIC_APPVIEW_HOST=https://bsky.${DOMAIN}
+  #     - ATP_APPVIEW_HOST=https://bsky.${PARTITION}.${DOMAIN}
+  #     - ATP_PUBLIC_APPVIEW_HOST=https://bsky.${PARTITION}.${DOMAIN}
   #   volumes:
   #     - feedgen_did_share:/shared:ro
   #   depends_on:
@@ -525,7 +528,7 @@ services:
   #       condition: service_started
   #   labels:
   #     - "traefik.enable=true"
-  #     - "traefik.http.routers.social.rule=Host(`social.${DOMAIN}`)"
+  #     - "traefik.http.routers.social.rule=Host(`social.${PARTITION}.${DOMAIN}`)"
   #     - "traefik.http.routers.social.entrypoints=websecure"
   #     - "traefik.http.routers.social.tls.certresolver=letsencrypt"
   #     - "traefik.http.services.social.loadbalancer.server.port=8100"
@@ -540,7 +543,7 @@ services:
   #   image: node:22-alpine
   #   working_dir: /app
   #   environment:
-  #     - DOMAIN=${DOMAIN}
+  #     - DOMAIN=${PARTITION}.${DOMAIN}
   #   volumes:
   #     - ./e2e:/app/e2e
   #     - ./jest.config.js:/app/jest.config.js
@@ -562,7 +565,7 @@ services:
   #   image: mcr.microsoft.com/playwright:v1.55.1-noble
   #   working_dir: /app
   #   environment:
-  #     - DOMAIN=${DOMAIN}
+  #     - DOMAIN=${PARTITION}.${DOMAIN}
   #     - CI=true
   #   volumes:
   #     - ./e2e:/app/e2e
