@@ -1,11 +1,22 @@
 #!/bin/sh
 set -e
 
+echo "Starting DNS update script..."
+
+require_env() {
+  local var_name="$1"
+  eval local var_value=\$$var_name
+  if [ -z "$var_value" ]; then
+    echo "ERROR: ${var_name} not set"
+    exit 1
+  fi
+}
+
 validate_env() {
-  [ -z "$CF_DNS_API_TOKEN" ] && echo "CF_DNS_API_TOKEN not set" && exit 1
-  [ -z "$DOMAIN" ] && echo "DOMAIN not set" && exit 1
-  [ -z "$PARTITION" ] && echo "PARTITION not set" && exit 1
-  return 0
+  require_env "CF_DNS_API_TOKEN"
+  require_env "DOMAIN"
+  require_env "PARTITION"
+  echo "Environment variables validated"
 }
 
 wait_for_tailscale() {
