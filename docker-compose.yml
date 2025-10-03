@@ -522,7 +522,12 @@ services:
       - "traefik.http.routers.social.tls.certresolver=letsencrypt"
       - "traefik.http.services.social.loadbalancer.server.port=8100"
     healthcheck:
-      disable: true
+      # TODO need a better healthcheck
+      test: ["CMD-SHELL", "pidof bskyweb || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
 
   # =============================================================================
   # E2E TESTS
