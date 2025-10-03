@@ -59,25 +59,21 @@ jobs:
           TAILSCALE_CLIENT_SECRET: ${{secrets.TAILSCALE_CLIENT_SECRET}}
           CF_API_EMAIL: ${{secrets.CF_API_EMAIL}}
           CF_DNS_API_TOKEN: ${{secrets.CF_DNS_API_TOKEN}}
-        run: docker compose up -d --wait traefik-https-check
+        run: docker compose up -d --wait
 
-      - name: Show healthcheck logs
-        if: always()
-        run: docker inspect --format='{{range .State.Health.Log}}{{.Output}}{{end}}' u-at-proto-traefik-https-check-1
+      - name: Run Jest E2E tests
+        env:
+          TS_AUTHKEY: ${{secrets.TS_AUTHKEY}}
+          CF_API_EMAIL: ${{secrets.CF_API_EMAIL}}
+          CF_DNS_API_TOKEN: ${{secrets.CF_DNS_API_TOKEN}}
+        run: docker compose --profile test run --rm e2e-jest
 
-      # - name: Run Jest E2E tests
-      #   env:
-      #     TS_AUTHKEY: ${{secrets.TS_AUTHKEY}}
-      #     CF_API_EMAIL: ${{secrets.CF_API_EMAIL}}
-      #     CF_DNS_API_TOKEN: ${{secrets.CF_DNS_API_TOKEN}}
-      #   run: docker compose --profile test run --rm e2e-jest
-
-      # - name: Run Playwright E2E tests
-      #   env:
-      #     TS_AUTHKEY: ${{secrets.TS_AUTHKEY}}
-      #     CF_API_EMAIL: ${{secrets.CF_API_EMAIL}}
-      #     CF_DNS_API_TOKEN: ${{secrets.CF_DNS_API_TOKEN}}
-      #   run: docker compose --profile test run --rm e2e-playwright
+      - name: Run Playwright E2E tests
+        env:
+          TS_AUTHKEY: ${{secrets.TS_AUTHKEY}}
+          CF_API_EMAIL: ${{secrets.CF_API_EMAIL}}
+          CF_DNS_API_TOKEN: ${{secrets.CF_DNS_API_TOKEN}}
+        run: docker compose --profile test run --rm e2e-playwright
 
       - name: Upload Playwright report
         if: always()

@@ -56,7 +56,7 @@ class JetstreamEventCollector {
 
   static async create(domain: string): Promise<JetstreamEventCollector> {
     const websocket = new WebSocket(
-      `wss://${PARTITION}.${DOMAIN}/subscribe?wantedCollections=app.bsky.feed.post`
+      `wss://${JETSTREAM_DOMAIN}/subscribe?wantedCollections=app.bsky.feed.post`
     );
 
     return new Promise((resolve, reject) => {
