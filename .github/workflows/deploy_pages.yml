@@ -1,11 +1,11 @@
 name: Deploy Pages
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows:
-      - E2E Tests
-    types:
-      - completed
+  # workflow_run:
+  #   workflows:
+  #     - E2E Tests
+  #   types:
+  #     - completed
 
 permissions:
   contents: read

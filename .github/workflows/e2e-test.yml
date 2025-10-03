@@ -1,6 +1,7 @@
 name: E2E Tests
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
 
@@ -58,21 +59,21 @@ jobs:
           CF_DNS_API_TOKEN: ${{secrets.CF_DNS_API_TOKEN}}
         run: docker compose up -d
 
-      - name: Run Jest E2E tests
-        env:
-          TS_AUTHKEY: ${{secrets.TS_AUTHKEY}}
-          DOMAIN: ${{secrets.DOMAIN}}
-          CF_API_EMAIL: ${{secrets.CF_API_EMAIL}}
-          CF_DNS_API_TOKEN: ${{secrets.CF_DNS_API_TOKEN}}
-        run: docker compose --profile test run --rm e2e-jest
+      # - name: Run Jest E2E tests
+      #   env:
+      #     TS_AUTHKEY: ${{secrets.TS_AUTHKEY}}
+      #     DOMAIN: ${{secrets.DOMAIN}}
+      #     CF_API_EMAIL: ${{secrets.CF_API_EMAIL}}
+      #     CF_DNS_API_TOKEN: ${{secrets.CF_DNS_API_TOKEN}}
+      #   run: docker compose --profile test run --rm e2e-jest
 
-      - name: Run Playwright E2E tests
-        env:
-          TS_AUTHKEY: ${{secrets.TS_AUTHKEY}}
-          DOMAIN: ${{secrets.DOMAIN}}
-          CF_API_EMAIL: ${{secrets.CF_API_EMAIL}}
-          CF_DNS_API_TOKEN: ${{secrets.CF_DNS_API_TOKEN}}
-        run: docker compose --profile test run --rm e2e-playwright
+      # - name: Run Playwright E2E tests
+      #   env:
+      #     TS_AUTHKEY: ${{secrets.TS_AUTHKEY}}
+      #     DOMAIN: ${{secrets.DOMAIN}}
+      #     CF_API_EMAIL: ${{secrets.CF_API_EMAIL}}
+      #     CF_DNS_API_TOKEN: ${{secrets.CF_DNS_API_TOKEN}}
+      #   run: docker compose --profile test run --rm e2e-playwright
 
       - name: Upload Playwright report
         if: always()

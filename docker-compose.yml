@@ -97,491 +97,494 @@ services:
       traefik:
         condition: service_healthy
     network_mode: service:tailscale-traefik
-    command: >
-      sh -c "curl -fsSL --max-time 10 https://traefik.${DOMAIN} ||
-             (echo 'Traefik HTTPS endpoint not accessible' && exit 1)"
-
-  whoami:
-    image: traefik/whoami
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    environment:
-      - WHOAMI_PORT_NUMBER=8081
-    depends_on:
-      traefik-https-check:
-        condition: service_completed_successfully
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.whoami.rule=Host(`whoami.${DOMAIN}`)"
-      - "traefik.http.routers.whoami.entrypoints=websecure"
-      - "traefik.http.routers.whoami.tls.certresolver=letsencrypt"
-      - "traefik.http.services.whoami.loadbalancer.server.port=8081"
-
-  # =============================================================================
-  # POSTGRES DATABASE
-  # =============================================================================
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_PASSWORD: postgres
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
-    ports:
-      - "5432"
+    command: sleep infinity
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
-      interval: 5s
-      timeout: 5s
+      test: ["CMD-SHELL", "curl -fsSL --max-time 10 https://traefik.${DOMAIN}"]
+      interval: 30s
+      timeout: 10s
       retries: 5
 
-  # =============================================================================
-  # PLC (DID METHOD) SERVICE
-  # =============================================================================
+  # whoami:
+  #   image: traefik/whoami
+  #   restart: unless-stopped
+  #   security_opt:
+  #     - no-new-privileges:true
+  #   environment:
+  #     - WHOAMI_PORT_NUMBER=8081
+  #   depends_on:
+  #     traefik-https-check:
+  #       condition: service_completed_successfully
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.whoami.rule=Host(`whoami.${DOMAIN}`)"
+  #     - "traefik.http.routers.whoami.entrypoints=websecure"
+  #     - "traefik.http.routers.whoami.tls.certresolver=letsencrypt"
+  #     - "traefik.http.services.whoami.loadbalancer.server.port=8081"
 
-  plc:
-    image: ghcr.io/erikologic/did-method-plc:latest
-    environment:
-      DB_CREDS_JSON: '{"username":"plc","password":"plc","host":"postgres","port":"5432","database":"plc"}'
-      DB_MIGRATE_CREDS_JSON: '{"username":"plc","password":"plc","host":"postgres","port":"5432","database":"plc"}'
-      ENABLE_MIGRATIONS: "true"
-      LOG_ENABLED: "true"
-      LOG_LEVEL: "info"
-      PORT: 3000
-    depends_on:
-      traefik-https-check:
-        condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.plc.rule=Host(`plc.${DOMAIN}`)"
-      - "traefik.http.routers.plc.entrypoints=websecure"
-      - "traefik.http.routers.plc.tls.certresolver=letsencrypt"
-      - "traefik.http.services.plc.loadbalancer.server.port=3000"
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "wget --no-verbose --tries=1 --output-document=/dev/null http://localhost:3000/_health",
-        ]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 10s
+  # # =============================================================================
+  # # POSTGRES DATABASE
+  # # =============================================================================
+  # postgres:
+  #   image: postgres:15-alpine
+  #   environment:
+  #     POSTGRES_PASSWORD: postgres
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #     - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+  #   ports:
+  #     - "5432"
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 5
 
-  # =============================================================================
-  # PDS (PERSONAL DATA SERVER) SERVICE
-  # =============================================================================
+  # # =============================================================================
+  # # PLC (DID METHOD) SERVICE
+  # # =============================================================================
 
-  pds:
-    image: ghcr.io/bluesky-social/pds:latest
-    environment:
-      NODE_ENV: production
-      PDS_ADMIN_PASSWORD: admin123
-      PDS_BLOBSTORE_DISK_LOCATION: /app/data/blobs
-      PDS_DATA_DIRECTORY: /app/data
-      PDS_DID_PLC_URL: https://plc.${DOMAIN}
-      PDS_HOSTNAME: pds.${DOMAIN}
-      PDS_JWT_SECRET: dev-secret-change-in-production
-      PDS_PORT: 3000
-      PDS_PLC_ROTATION_KEY_K256_PRIVATE_KEY_HEX: da7a7d92e8d8f8e6f2a5a1b8c4d3e2f1a9b7c5d4e3f2a8b6c9d7e5f3a1b4c6d8
-      PDS_RECOVERY_DID_KEY: did:key:zQ3shsd3JjGDd8auYXp76QWijpjiwbPUv4oVdcACmXBjYnRsa
-      PDS_DISABLE_SSRF_PROTECTION: true
-      PDS_DEV_MODE: true
-      PDS_INVITE_REQUIRED: false
-      PDS_BSKY_APP_VIEW_URL: https://bsky.${DOMAIN}
-      PDS_BSKY_APP_VIEW_DID: did:web:bsky.${DOMAIN}
-      LOG_ENABLED: "true"
-      LOG_LEVEL: "debug"
-    volumes:
-      - pds_data:/app/data
-    depends_on:
-      traefik-https-check:
-        condition: service_completed_successfully
-      plc:
-        condition: service_healthy
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.pds.rule=Host(`pds.${DOMAIN}`) || HostRegexp(`^.+\\.pds\\.${DOMAIN}$$`)"
-      - "traefik.http.routers.pds.entrypoints=websecure"
-      - "traefik.http.routers.pds.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.pds.tls.domains[0].main=*.pds.${DOMAIN}"
-      - "traefik.http.services.pds.loadbalancer.server.port=3000"
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "wget --no-verbose --tries=1 --output-document=/dev/null http://localhost:3000/xrpc/_health",
-        ]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 10s
+  # plc:
+  #   image: ghcr.io/erikologic/did-method-plc:latest
+  #   environment:
+  #     DB_CREDS_JSON: '{"username":"plc","password":"plc","host":"postgres","port":"5432","database":"plc"}'
+  #     DB_MIGRATE_CREDS_JSON: '{"username":"plc","password":"plc","host":"postgres","port":"5432","database":"plc"}'
+  #     ENABLE_MIGRATIONS: "true"
+  #     LOG_ENABLED: "true"
+  #     LOG_LEVEL: "info"
+  #     PORT: 3000
+  #   depends_on:
+  #     traefik-https-check:
+  #       condition: service_completed_successfully
+  #     postgres:
+  #       condition: service_healthy
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.plc.rule=Host(`plc.${DOMAIN}`)"
+  #     - "traefik.http.routers.plc.entrypoints=websecure"
+  #     - "traefik.http.routers.plc.tls.certresolver=letsencrypt"
+  #     - "traefik.http.services.plc.loadbalancer.server.port=3000"
+  #   healthcheck:
+  #     test:
+  #       [
+  #         "CMD-SHELL",
+  #         "wget --no-verbose --tries=1 --output-document=/dev/null http://localhost:3000/_health",
+  #       ]
+  #     interval: 10s
+  #     timeout: 3s
+  #     retries: 3
+  #     start_period: 10s
 
-  # =============================================================================
-  # RELAY SERVICE
-  # =============================================================================
+  # # =============================================================================
+  # # PDS (PERSONAL DATA SERVER) SERVICE
+  # # =============================================================================
 
-  relay:
-    image: ghcr.io/erikologic/indigo:relay-latest
-    environment:
-      DATABASE_URL: postgres://relay:relay@postgres:5432/relay
-      RELAY_PLC_HOST: https://plc.${DOMAIN}
-      RELAY_ADMIN_PASSWORD: admin123
-      RELAY_PERSIST_DIR: /data/relay/persist
-      RELAY_ALLOW_INSECURE_HOSTS: "true"
-      RELAY_DISABLE_REQUEST_CRAWL: "false"
-      RELAY_API_LISTEN: 0.0.0.0:3000
-      RELAY_ALLOW_PRIVATE_NETWORKS: "true"
-      ENVIRONMENT: dev
-      LOG_LEVEL: trace
-    volumes:
-      - relay_data:/data/relay
-    depends_on:
-      traefik-https-check:
-        condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-      pds:
-        condition: service_healthy
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.relay.rule=Host(`relay.${DOMAIN}`)"
-      - "traefik.http.routers.relay.entrypoints=websecure"
-      - "traefik.http.routers.relay.tls.certresolver=letsencrypt"
-      - "traefik.http.services.relay.loadbalancer.server.port=3000"
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "wget --no-verbose --tries=1 --output-document=/dev/null http://localhost:3000/_health",
-        ]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 10s
+  # pds:
+  #   image: ghcr.io/bluesky-social/pds:latest
+  #   environment:
+  #     NODE_ENV: production
+  #     PDS_ADMIN_PASSWORD: admin123
+  #     PDS_BLOBSTORE_DISK_LOCATION: /app/data/blobs
+  #     PDS_DATA_DIRECTORY: /app/data
+  #     PDS_DID_PLC_URL: https://plc.${DOMAIN}
+  #     PDS_HOSTNAME: pds.${DOMAIN}
+  #     PDS_JWT_SECRET: dev-secret-change-in-production
+  #     PDS_PORT: 3000
+  #     PDS_PLC_ROTATION_KEY_K256_PRIVATE_KEY_HEX: da7a7d92e8d8f8e6f2a5a1b8c4d3e2f1a9b7c5d4e3f2a8b6c9d7e5f3a1b4c6d8
+  #     PDS_RECOVERY_DID_KEY: did:key:zQ3shsd3JjGDd8auYXp76QWijpjiwbPUv4oVdcACmXBjYnRsa
+  #     PDS_DISABLE_SSRF_PROTECTION: true
+  #     PDS_DEV_MODE: true
+  #     PDS_INVITE_REQUIRED: false
+  #     PDS_BSKY_APP_VIEW_URL: https://bsky.${DOMAIN}
+  #     PDS_BSKY_APP_VIEW_DID: did:web:bsky.${DOMAIN}
+  #     LOG_ENABLED: "true"
+  #     LOG_LEVEL: "debug"
+  #   volumes:
+  #     - pds_data:/app/data
+  #   depends_on:
+  #     traefik-https-check:
+  #       condition: service_completed_successfully
+  #     plc:
+  #       condition: service_healthy
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.pds.rule=Host(`pds.${DOMAIN}`) || HostRegexp(`^.+\\.pds\\.${DOMAIN}$$`)"
+  #     - "traefik.http.routers.pds.entrypoints=websecure"
+  #     - "traefik.http.routers.pds.tls.certresolver=letsencrypt"
+  #     - "traefik.http.routers.pds.tls.domains[0].main=*.pds.${DOMAIN}"
+  #     - "traefik.http.services.pds.loadbalancer.server.port=3000"
+  #   healthcheck:
+  #     test:
+  #       [
+  #         "CMD-SHELL",
+  #         "wget --no-verbose --tries=1 --output-document=/dev/null http://localhost:3000/xrpc/_health",
+  #       ]
+  #     interval: 10s
+  #     timeout: 3s
+  #     retries: 3
+  #     start_period: 10s
 
-  # =============================================================================
-  # JETSTREAM SERVICE
-  # =============================================================================
+  # # =============================================================================
+  # # RELAY SERVICE
+  # # =============================================================================
 
-  jetstream:
-    image: ghcr.io/erikologic/jetstream:latest
-    environment:
-      - JETSTREAM_DATA_DIR=/data
-      - JETSTREAM_WS_URL=wss://relay.${DOMAIN}/xrpc/com.atproto.sync.subscribeRepos
-      - JETSTREAM_LISTEN_ADDR=:6008
-      - JETSTREAM_LIVENESS_TTL=3600s
-    volumes:
-      - jetstream_data:/data
-    depends_on:
-      traefik-https-check:
-        condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-      relay:
-        condition: service_healthy
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.jetstream.rule=Host(`jetstream.${DOMAIN}`)"
-      - "traefik.http.routers.jetstream.entrypoints=websecure"
-      - "traefik.http.routers.jetstream.tls.certresolver=letsencrypt"
-      - "traefik.http.services.jetstream.loadbalancer.server.port=6008"
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:6008"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 10s
+  # relay:
+  #   image: ghcr.io/erikologic/indigo:relay-latest
+  #   environment:
+  #     DATABASE_URL: postgres://relay:relay@postgres:5432/relay
+  #     RELAY_PLC_HOST: https://plc.${DOMAIN}
+  #     RELAY_ADMIN_PASSWORD: admin123
+  #     RELAY_PERSIST_DIR: /data/relay/persist
+  #     RELAY_ALLOW_INSECURE_HOSTS: "true"
+  #     RELAY_DISABLE_REQUEST_CRAWL: "false"
+  #     RELAY_API_LISTEN: 0.0.0.0:3000
+  #     RELAY_ALLOW_PRIVATE_NETWORKS: "true"
+  #     ENVIRONMENT: dev
+  #     LOG_LEVEL: trace
+  #   volumes:
+  #     - relay_data:/data/relay
+  #   depends_on:
+  #     traefik-https-check:
+  #       condition: service_completed_successfully
+  #     postgres:
+  #       condition: service_healthy
+  #     pds:
+  #       condition: service_healthy
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.relay.rule=Host(`relay.${DOMAIN}`)"
+  #     - "traefik.http.routers.relay.entrypoints=websecure"
+  #     - "traefik.http.routers.relay.tls.certresolver=letsencrypt"
+  #     - "traefik.http.services.relay.loadbalancer.server.port=3000"
+  #   healthcheck:
+  #     test:
+  #       [
+  #         "CMD-SHELL",
+  #         "wget --no-verbose --tries=1 --output-document=/dev/null http://localhost:3000/_health",
+  #       ]
+  #     interval: 10s
+  #     timeout: 3s
+  #     retries: 3
+  #     start_period: 10s
 
-  # =============================================================================
-  # OZONE MODERATION SERVICE
-  # =============================================================================
+  # # =============================================================================
+  # # JETSTREAM SERVICE
+  # # =============================================================================
 
-  ozone:
-    image: ghcr.io/bluesky-social/ozone:latest
-    environment:
-      - OZONE_DB_POSTGRES_URL=postgres://ozone:ozone@postgres:5432/ozone
-      - OZONE_DB_MIGRATE=1
-      - OZONE_SERVER_DID=did:web:ozone.${DOMAIN}
-      - OZONE_PUBLIC_URL=https://ozone.${DOMAIN}
-      - OZONE_DID_PLC_URL=https://plc.${DOMAIN}
-      - OZONE_APPVIEW_URL=https://bsky.${DOMAIN}
-      - OZONE_APPVIEW_DID=did:web:bsky.${DOMAIN}
-      - OZONE_ADMIN_PASSWORD=admin123
-      - OZONE_ADMIN_DIDS=did:web:ozone.${DOMAIN}
-      - OZONE_SIGNING_KEY_HEX=da7a7d92e8d8f8e6f2a5a1b8c4d3e2f1a9b7c5d4e3f2a8b6c9d7e5f3a1b4c6d8
-      - NODE_ENV=production
-      - LOG_ENABLED=true
-      - LOG_LEVEL=info
-      - PORT=3000
-    volumes:
-      - ozone_data:/data
-    depends_on:
-      traefik-https-check:
-        condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-      plc:
-        condition: service_healthy
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.ozone.rule=Host(`ozone.${DOMAIN}`)"
-      - "traefik.http.routers.ozone.entrypoints=websecure"
-      - "traefik.http.routers.ozone.tls.certresolver=letsencrypt"
-      - "traefik.http.services.ozone.loadbalancer.server.port=3000"
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "wget --no-verbose --tries=1 --output-document=/dev/null http://localhost:3000",
-        ]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 10s
+  # jetstream:
+  #   image: ghcr.io/erikologic/jetstream:latest
+  #   environment:
+  #     - JETSTREAM_DATA_DIR=/data
+  #     - JETSTREAM_WS_URL=wss://relay.${DOMAIN}/xrpc/com.atproto.sync.subscribeRepos
+  #     - JETSTREAM_LISTEN_ADDR=:6008
+  #     - JETSTREAM_LIVENESS_TTL=3600s
+  #   volumes:
+  #     - jetstream_data:/data
+  #   depends_on:
+  #     traefik-https-check:
+  #       condition: service_completed_successfully
+  #     postgres:
+  #       condition: service_healthy
+  #     relay:
+  #       condition: service_healthy
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.jetstream.rule=Host(`jetstream.${DOMAIN}`)"
+  #     - "traefik.http.routers.jetstream.entrypoints=websecure"
+  #     - "traefik.http.routers.jetstream.tls.certresolver=letsencrypt"
+  #     - "traefik.http.services.jetstream.loadbalancer.server.port=6008"
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "curl -fsS http://localhost:6008"]
+  #     interval: 10s
+  #     timeout: 3s
+  #     retries: 3
+  #     start_period: 10s
 
-  # =============================================================================
-  # OPENTELEMETRY COLLECTOR
-  # =============================================================================
-  otel:
-    profiles: ["otel"]
-    image: otel/opentelemetry-collector-contrib:latest
-    command: ["--config=/etc/otel-collector-config.yaml"]
-    volumes:
-      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
-    ports:
-      - "4318:4318"
-      - "8126:8126"
+  # # =============================================================================
+  # # OZONE MODERATION SERVICE
+  # # =============================================================================
 
-  # =============================================================================
-  # BSKY SERVICE
-  # =============================================================================
-  redis:
-    image: redis:7-bookworm
-    restart: always
+  # ozone:
+  #   image: ghcr.io/bluesky-social/ozone:latest
+  #   environment:
+  #     - OZONE_DB_POSTGRES_URL=postgres://ozone:ozone@postgres:5432/ozone
+  #     - OZONE_DB_MIGRATE=1
+  #     - OZONE_SERVER_DID=did:web:ozone.${DOMAIN}
+  #     - OZONE_PUBLIC_URL=https://ozone.${DOMAIN}
+  #     - OZONE_DID_PLC_URL=https://plc.${DOMAIN}
+  #     - OZONE_APPVIEW_URL=https://bsky.${DOMAIN}
+  #     - OZONE_APPVIEW_DID=did:web:bsky.${DOMAIN}
+  #     - OZONE_ADMIN_PASSWORD=admin123
+  #     - OZONE_ADMIN_DIDS=did:web:ozone.${DOMAIN}
+  #     - OZONE_SIGNING_KEY_HEX=da7a7d92e8d8f8e6f2a5a1b8c4d3e2f1a9b7c5d4e3f2a8b6c9d7e5f3a1b4c6d8
+  #     - NODE_ENV=production
+  #     - LOG_ENABLED=true
+  #     - LOG_LEVEL=info
+  #     - PORT=3000
+  #   volumes:
+  #     - ozone_data:/data
+  #   depends_on:
+  #     traefik-https-check:
+  #       condition: service_completed_successfully
+  #     postgres:
+  #       condition: service_healthy
+  #     plc:
+  #       condition: service_healthy
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.ozone.rule=Host(`ozone.${DOMAIN}`)"
+  #     - "traefik.http.routers.ozone.entrypoints=websecure"
+  #     - "traefik.http.routers.ozone.tls.certresolver=letsencrypt"
+  #     - "traefik.http.services.ozone.loadbalancer.server.port=3000"
+  #   healthcheck:
+  #     test:
+  #       [
+  #         "CMD-SHELL",
+  #         "wget --no-verbose --tries=1 --output-document=/dev/null http://localhost:3000",
+  #       ]
+  #     interval: 10s
+  #     timeout: 3s
+  #     retries: 3
+  #     start_period: 10s
 
-  bsky:
-    image: ghcr.io/erikologic/atproto:bsky-latest
-    environment:
-      - BSKY_ADMIN_PASSWORDS=password123
-      - BSKY_BLOB_CACHE_LOC=/cache/
-      - BSKY_BSYNC_HTTP_VERSION=1.1
-      - BSKY_BSYNC_PORT=3002
-      - BSKY_BSYNC_URL=http://localhost:3002
-      - BSKY_DATAPLANE_HTTP_VERSION=1.1
-      - BSKY_DATAPLANE_PORT=3001
-      - BSKY_DATAPLANE_URLS=http://localhost:3001
-      - BSKY_DB_POSTGRES_SCHEMA=bsky
-      - BSKY_DB_POSTGRES_URL=postgres://bsky:bsky@postgres:5432/bsky
-      - BSKY_DB_POOL_SIZE=100
-      - BSKY_DID_PLC_URL=https://plc.${DOMAIN}
-      - BSKY_PUBLIC_URL=https://bsky.${DOMAIN}
-      - BSKY_REPO_PROVIDER=wss://relay.${DOMAIN}
-      - BSKY_SERVER_DID=did:web:bsky.${DOMAIN}
-      - BSKY_SERVICE_SIGNING_KEY=da7a7d92e8d8f8e6f2a5a1b8c4d3e2f1a9b7c5d4e3f2a8b6c9d7e5f3a1b4c6d8
-      - BSKY_INDEXED_AT_EPOCH=${BSKY_INDEXED_AT_EPOCH:-2022-11-17T00:35:16.391+00:00}
-      - BSKY_VIDEO_PLAYLIST_URL_PATTERN=https://video.bsky.app/watch/%s/%s/playlist.m3u8
-      - BSKY_VIDEO_THUMBNAIL_URL_PATTERN=https://video.bsky.app/watch/%s/%s/thumbnail.jpg
-      - MOD_SERVICE_DID=did:web:ozone.${DOMAIN}
-      - CLUSTER_WORKER_COUNT=3
-      - DEBUG_MODE=1
-      - LOG_DESTINATION=1
-      - LOG_ENABLED=true
-      - LOG_LEVEL=trace
-      - NODE_ENV=${NODE_ENV:-production}
-      - NODE_OPTIONS=--max-old-space-size=32768
-      - REDIS_HOST=redis
-      - PORT=2584
-      - DD_AGENT_HOST=otel
-      - DD_TRACE_AGENT_PORT=8126
-      - DD_TRACE_ENABLED=true
-      - DD_LOGS_INJECTION=true
-      - DD_SERVICE=bsky
-      - DD_ENV=dev
-    depends_on:
-      traefik-https-check:
-        condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-      relay:
-        condition: service_healthy
-      ozone:
-        condition: service_started
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.bsky.rule=Host(`bsky.${DOMAIN}`)"
-      - "traefik.http.routers.bsky.entrypoints=websecure"
-      - "traefik.http.routers.bsky.tls.certresolver=letsencrypt"
-      - "traefik.http.services.bsky.loadbalancer.server.port=2584"
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "wget --no-verbose --tries=1 --output-document=/dev/null http://localhost:2584",
-        ]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 10s
+  # # =============================================================================
+  # # OPENTELEMETRY COLLECTOR
+  # # =============================================================================
+  # otel:
+  #   profiles: ["otel"]
+  #   image: otel/opentelemetry-collector-contrib:latest
+  #   command: ["--config=/etc/otel-collector-config.yaml"]
+  #   volumes:
+  #     - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+  #   ports:
+  #     - "4318:4318"
+  #     - "8126:8126"
 
-  # =============================================================================
-  # PREPARATION SERVICE
-  # =============================================================================
-  prepare:
-    image: curlimages/curl:latest
-    depends_on:
-      relay:
-        condition: service_healthy
-    working_dir: /app
-    environment:
-      - DOMAIN=${DOMAIN}
-    volumes:
-      - ./prepare.sh:/app/prepare.sh:ro
-    command: sh /app/prepare.sh
-    healthcheck:
-      test: ["CMD-SHELL", "test -f /tmp/ready"]
-      interval: 2s
-      timeout: 1s
-      retries: 3
-      start_period: 5s
+  # # =============================================================================
+  # # BSKY SERVICE
+  # # =============================================================================
+  # redis:
+  #   image: redis:7-bookworm
+  #   restart: always
 
-  # =============================================================================
-  # FEED GENERATOR SERVICE
-  # =============================================================================
-  feedgen:
-    image: ghcr.io/erikologic/feed-generator:latest
-    entrypoint: ["/bin/sh", "/app/start-wrapper.sh"]
-    command: []
-    volumes:
-      - feedgen_data:/data
-      - feedgen_did_share:/shared
-      - ./feedgen-start-wrapper.sh:/app/start-wrapper.sh:ro
-    environment:
-      - FEEDGEN_PORT=3000
-      - FEEDGEN_LISTENHOST=0.0.0.0
-      - FEEDGEN_SQLITE_LOCATION=/data/db.sqlite
-      - FEEDGEN_SUBSCRIPTION_ENDPOINT=wss://relay.${DOMAIN}
-      - FEEDGEN_HOSTNAME=feedgen.${DOMAIN}
-      - FEEDGEN_SUBSCRIPTION_RECONNECT_DELAY=3000
-      - AUTO_PUBLISH=true
-      - PUBLISH_HANDLE=feedgen.pds.${DOMAIN}
-      - PUBLISH_PASSWORD=feedgen-password-123
-      - PUBLISH_SERVICE=https://pds.${DOMAIN}
-      - PUBLISH_RECORD_NAME=whats-hot
-      - PUBLISH_DISPLAY_NAME=What's Hot
-      - PUBLISH_DESCRIPTION=Local feed showing recent posts
-      - PUBLISH_CREATE_USER=true
-      - PUBLISH_EMAIL=feedgen@example.com
-    depends_on:
-      traefik-https-check:
-        condition: service_completed_successfully
-      pds:
-        condition: service_healthy
-      relay:
-        condition: service_healthy
-      bsky:
-        condition: service_healthy
-      prepare:
-        condition: service_healthy
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.feedgen.rule=Host(`feedgen.${DOMAIN}`)"
-      - "traefik.http.routers.feedgen.entrypoints=websecure"
-      - "traefik.http.routers.feedgen.tls.certresolver=letsencrypt"
-      - "traefik.http.services.feedgen.loadbalancer.server.port=3000"
-    healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/.well-known/did.json || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 10s
+  # bsky:
+  #   image: ghcr.io/erikologic/atproto:bsky-latest
+  #   environment:
+  #     - BSKY_ADMIN_PASSWORDS=password123
+  #     - BSKY_BLOB_CACHE_LOC=/cache/
+  #     - BSKY_BSYNC_HTTP_VERSION=1.1
+  #     - BSKY_BSYNC_PORT=3002
+  #     - BSKY_BSYNC_URL=http://localhost:3002
+  #     - BSKY_DATAPLANE_HTTP_VERSION=1.1
+  #     - BSKY_DATAPLANE_PORT=3001
+  #     - BSKY_DATAPLANE_URLS=http://localhost:3001
+  #     - BSKY_DB_POSTGRES_SCHEMA=bsky
+  #     - BSKY_DB_POSTGRES_URL=postgres://bsky:bsky@postgres:5432/bsky
+  #     - BSKY_DB_POOL_SIZE=100
+  #     - BSKY_DID_PLC_URL=https://plc.${DOMAIN}
+  #     - BSKY_PUBLIC_URL=https://bsky.${DOMAIN}
+  #     - BSKY_REPO_PROVIDER=wss://relay.${DOMAIN}
+  #     - BSKY_SERVER_DID=did:web:bsky.${DOMAIN}
+  #     - BSKY_SERVICE_SIGNING_KEY=da7a7d92e8d8f8e6f2a5a1b8c4d3e2f1a9b7c5d4e3f2a8b6c9d7e5f3a1b4c6d8
+  #     - BSKY_INDEXED_AT_EPOCH=${BSKY_INDEXED_AT_EPOCH:-2022-11-17T00:35:16.391+00:00}
+  #     - BSKY_VIDEO_PLAYLIST_URL_PATTERN=https://video.bsky.app/watch/%s/%s/playlist.m3u8
+  #     - BSKY_VIDEO_THUMBNAIL_URL_PATTERN=https://video.bsky.app/watch/%s/%s/thumbnail.jpg
+  #     - MOD_SERVICE_DID=did:web:ozone.${DOMAIN}
+  #     - CLUSTER_WORKER_COUNT=3
+  #     - DEBUG_MODE=1
+  #     - LOG_DESTINATION=1
+  #     - LOG_ENABLED=true
+  #     - LOG_LEVEL=trace
+  #     - NODE_ENV=${NODE_ENV:-production}
+  #     - NODE_OPTIONS=--max-old-space-size=32768
+  #     - REDIS_HOST=redis
+  #     - PORT=2584
+  #     - DD_AGENT_HOST=otel
+  #     - DD_TRACE_AGENT_PORT=8126
+  #     - DD_TRACE_ENABLED=true
+  #     - DD_LOGS_INJECTION=true
+  #     - DD_SERVICE=bsky
+  #     - DD_ENV=dev
+  #   depends_on:
+  #     traefik-https-check:
+  #       condition: service_completed_successfully
+  #     postgres:
+  #       condition: service_healthy
+  #     relay:
+  #       condition: service_healthy
+  #     ozone:
+  #       condition: service_started
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.bsky.rule=Host(`bsky.${DOMAIN}`)"
+  #     - "traefik.http.routers.bsky.entrypoints=websecure"
+  #     - "traefik.http.routers.bsky.tls.certresolver=letsencrypt"
+  #     - "traefik.http.services.bsky.loadbalancer.server.port=2584"
+  #   healthcheck:
+  #     test:
+  #       [
+  #         "CMD-SHELL",
+  #         "wget --no-verbose --tries=1 --output-document=/dev/null http://localhost:2584",
+  #       ]
+  #     interval: 10s
+  #     timeout: 3s
+  #     retries: 3
+  #     start_period: 10s
 
-  # =============================================================================
-  # SOCIAL-APP SERVICE
-  # =============================================================================
+  # # =============================================================================
+  # # PREPARATION SERVICE
+  # # =============================================================================
+  # prepare:
+  #   image: curlimages/curl:latest
+  #   depends_on:
+  #     relay:
+  #       condition: service_healthy
+  #   working_dir: /app
+  #   environment:
+  #     - DOMAIN=${DOMAIN}
+  #   volumes:
+  #     - ./prepare.sh:/app/prepare.sh:ro
+  #   command: sh /app/prepare.sh
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "test -f /tmp/ready"]
+  #     interval: 2s
+  #     timeout: 1s
+  #     retries: 3
+  #     start_period: 5s
 
-  social:
-    image: ghcr.io/erikologic/social-app:latest
-    entrypoint: ["/entrypoint.sh"]
-    environment:
-      - ATP_APPVIEW_HOST=https://bsky.${DOMAIN}
-      - ATP_PUBLIC_APPVIEW_HOST=https://bsky.${DOMAIN}
-    volumes:
-      - feedgen_did_share:/shared:ro
-    depends_on:
-      traefik-https-check:
-        condition: service_completed_successfully
-      bsky:
-        condition: service_healthy
-      feedgen:
-        condition: service_started
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.social.rule=Host(`social.${DOMAIN}`)"
-      - "traefik.http.routers.social.entrypoints=websecure"
-      - "traefik.http.routers.social.tls.certresolver=letsencrypt"
-      - "traefik.http.services.social.loadbalancer.server.port=8100"
-    healthcheck:
-      disable: true
+  # # =============================================================================
+  # # FEED GENERATOR SERVICE
+  # # =============================================================================
+  # feedgen:
+  #   image: ghcr.io/erikologic/feed-generator:latest
+  #   entrypoint: ["/bin/sh", "/app/start-wrapper.sh"]
+  #   command: []
+  #   volumes:
+  #     - feedgen_data:/data
+  #     - feedgen_did_share:/shared
+  #     - ./feedgen-start-wrapper.sh:/app/start-wrapper.sh:ro
+  #   environment:
+  #     - FEEDGEN_PORT=3000
+  #     - FEEDGEN_LISTENHOST=0.0.0.0
+  #     - FEEDGEN_SQLITE_LOCATION=/data/db.sqlite
+  #     - FEEDGEN_SUBSCRIPTION_ENDPOINT=wss://relay.${DOMAIN}
+  #     - FEEDGEN_HOSTNAME=feedgen.${DOMAIN}
+  #     - FEEDGEN_SUBSCRIPTION_RECONNECT_DELAY=3000
+  #     - AUTO_PUBLISH=true
+  #     - PUBLISH_HANDLE=feedgen.pds.${DOMAIN}
+  #     - PUBLISH_PASSWORD=feedgen-password-123
+  #     - PUBLISH_SERVICE=https://pds.${DOMAIN}
+  #     - PUBLISH_RECORD_NAME=whats-hot
+  #     - PUBLISH_DISPLAY_NAME=What's Hot
+  #     - PUBLISH_DESCRIPTION=Local feed showing recent posts
+  #     - PUBLISH_CREATE_USER=true
+  #     - PUBLISH_EMAIL=feedgen@example.com
+  #   depends_on:
+  #     traefik-https-check:
+  #       condition: service_completed_successfully
+  #     pds:
+  #       condition: service_healthy
+  #     relay:
+  #       condition: service_healthy
+  #     bsky:
+  #       condition: service_healthy
+  #     prepare:
+  #       condition: service_healthy
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.feedgen.rule=Host(`feedgen.${DOMAIN}`)"
+  #     - "traefik.http.routers.feedgen.entrypoints=websecure"
+  #     - "traefik.http.routers.feedgen.tls.certresolver=letsencrypt"
+  #     - "traefik.http.services.feedgen.loadbalancer.server.port=3000"
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/.well-known/did.json || exit 1"]
+  #     interval: 10s
+  #     timeout: 3s
+  #     retries: 3
+  #     start_period: 10s
 
-  # =============================================================================
-  # E2E TESTS
-  # =============================================================================
-  e2e-jest:
-    profiles: ["test"]
-    image: node:22-alpine
-    working_dir: /app
-    environment:
-      - DOMAIN=${DOMAIN}
-    volumes:
-      - ./e2e:/app/e2e
-      - ./jest.config.js:/app/jest.config.js
-      - ./package-lock.json:/app/package-lock.json
-      - ./package.json:/app/package.json
-      - ./tsconfig.json:/app/tsconfig.json
-    depends_on:
-      prepare:
-        condition: service_started
-      jetstream:
-        condition: service_healthy
-      bsky:
-        condition: service_healthy
-    command: >
-      sh -c "npm install && npm test"
+  # # =============================================================================
+  # # SOCIAL-APP SERVICE
+  # # =============================================================================
 
-  e2e-playwright:
-    profiles: ["test"]
-    image: mcr.microsoft.com/playwright:v1.55.1-noble
-    working_dir: /app
-    environment:
-      - DOMAIN=${DOMAIN}
-      - CI=true
-    volumes:
-      - ./e2e:/app/e2e
-      - ./playwright.config.ts:/app/playwright.config.ts
-      - ./package-lock.json:/app/package-lock.json
-      - ./package.json:/app/package.json
-      - ./tsconfig.json:/app/tsconfig.json
-      - ./playwright-report:/app/playwright-report
-      - ./test-results:/app/test-results
-    depends_on:
-      e2e-jest:
-        condition: service_completed_successfully
-      social:
-        condition: service_started
-    command: >
-      sh -c "npm install && npm run test:browser"
+  # social:
+  #   image: ghcr.io/erikologic/social-app:latest
+  #   entrypoint: ["/entrypoint.sh"]
+  #   environment:
+  #     - ATP_APPVIEW_HOST=https://bsky.${DOMAIN}
+  #     - ATP_PUBLIC_APPVIEW_HOST=https://bsky.${DOMAIN}
+  #   volumes:
+  #     - feedgen_did_share:/shared:ro
+  #   depends_on:
+  #     traefik-https-check:
+  #       condition: service_completed_successfully
+  #     bsky:
+  #       condition: service_healthy
+  #     feedgen:
+  #       condition: service_started
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.social.rule=Host(`social.${DOMAIN}`)"
+  #     - "traefik.http.routers.social.entrypoints=websecure"
+  #     - "traefik.http.routers.social.tls.certresolver=letsencrypt"
+  #     - "traefik.http.services.social.loadbalancer.server.port=8100"
+  #   healthcheck:
+  #     disable: true
+
+  # # =============================================================================
+  # # E2E TESTS
+  # # =============================================================================
+  # e2e-jest:
+  #   profiles: ["test"]
+  #   image: node:22-alpine
+  #   working_dir: /app
+  #   environment:
+  #     - DOMAIN=${DOMAIN}
+  #   volumes:
+  #     - ./e2e:/app/e2e
+  #     - ./jest.config.js:/app/jest.config.js
+  #     - ./package-lock.json:/app/package-lock.json
+  #     - ./package.json:/app/package.json
+  #     - ./tsconfig.json:/app/tsconfig.json
+  #   depends_on:
+  #     prepare:
+  #       condition: service_started
+  #     jetstream:
+  #       condition: service_healthy
+  #     bsky:
+  #       condition: service_healthy
+  #   command: >
+  #     sh -c "npm install && npm test"
+
+  # e2e-playwright:
+  #   profiles: ["test"]
+  #   image: mcr.microsoft.com/playwright:v1.55.1-noble
+  #   working_dir: /app
+  #   environment:
+  #     - DOMAIN=${DOMAIN}
+  #     - CI=true
+  #   volumes:
+  #     - ./e2e:/app/e2e
+  #     - ./playwright.config.ts:/app/playwright.config.ts
+  #     - ./package-lock.json:/app/package-lock.json
+  #     - ./package.json:/app/package.json
+  #     - ./tsconfig.json:/app/tsconfig.json
+  #     - ./playwright-report:/app/playwright-report
+  #     - ./test-results:/app/test-results
+  #   depends_on:
+  #     e2e-jest:
+  #       condition: service_completed_successfully
+  #     social:
+  #       condition: service_started
+  #   command: >
+  #     sh -c "npm install && npm run test:browser"
 
 volumes:
-  postgres_data:
-  pds_data:
-  relay_data:
-  jetstream_data:
-  ozone_data:
-  feedgen_data:
-  feedgen_did_share:
+  # postgres_data:
+  # pds_data:
+  # relay_data:
+  # jetstream_data:
+  # ozone_data:
+  # feedgen_data:
+  # feedgen_did_share:
   tailscale-traefik-state:
   tailscale-socket:
