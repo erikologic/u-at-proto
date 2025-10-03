@@ -33,10 +33,15 @@ get_tailscale_ip() {
 
 get_zone_id() {
   local base_domain="$1"
-  local zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=${base_domain}" \
+  local response=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=${base_domain}" \
     -H "Authorization: Bearer ${CF_DNS_API_TOKEN}" \
-    -H "Content-Type: application/json" | jq -r '.result[0].id')
-  [ "$zone_id" = "null" ] && echo "Failed to get zone ID for ${base_domain}" && exit 1
+    -H "Content-Type: application/json")
+  local zone_id=$(echo "$response" | jq -r '.result[0].id')
+  if [ "$zone_id" = "null" ] || [ -z "$zone_id" ]; then
+    echo "Failed to get zone ID for ${base_domain}"
+    echo "Response: $response"
+    exit 1
+  fi
   echo "$zone_id"
 }
 
@@ -53,10 +58,17 @@ create_dns_record() {
   local name="$2"
   local ip="$3"
   echo "Creating DNS record ${name} -> ${ip}"
-  curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records" \
+  local response=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records" \
     -H "Authorization: Bearer ${CF_DNS_API_TOKEN}" \
     -H "Content-Type: application/json" \
-    --data "{\"type\":\"A\",\"name\":\"${name}\",\"content\":\"${ip}\",\"ttl\":60,\"proxied\":false}"
+    --data "{\"type\":\"A\",\"name\":\"${name}\",\"content\":\"${ip}\",\"ttl\":60,\"proxied\":false}")
+  local success=$(echo "$response" | jq -r '.success')
+  if [ "$success" != "true" ]; then
+    echo "Failed to create DNS record"
+    echo "Response: $response"
+    exit 1
+  fi
+  echo "DNS record created successfully"
 }
 
 update_dns_record() {
@@ -65,10 +77,17 @@ update_dns_record() {
   local name="$3"
   local ip="$4"
   echo "Updating DNS record ${name} -> ${ip}"
-  curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records/${record_id}" \
+  local response=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records/${record_id}" \
     -H "Authorization: Bearer ${CF_DNS_API_TOKEN}" \
     -H "Content-Type: application/json" \
-    --data "{\"type\":\"A\",\"name\":\"${name}\",\"content\":\"${ip}\",\"ttl\":60,\"proxied\":false}"
+    --data "{\"type\":\"A\",\"name\":\"${name}\",\"content\":\"${ip}\",\"ttl\":60,\"proxied\":false}")
+  local success=$(echo "$response" | jq -r '.success')
+  if [ "$success" != "true" ]; then
+    echo "Failed to update DNS record"
+    echo "Response: $response"
+    exit 1
+  fi
+  echo "DNS record updated successfully"
 }
 
 main() {
