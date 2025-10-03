@@ -28,7 +28,7 @@ jobs:
         id: cache-certs
         uses: actions/cache@v4
         with:
-          path: caddy/config/certificates.tar.gz.enc
+          path: traefik/certs/certificates.tar.gz.enc
           key: certificates-${{ github.run_id }}
           restore-keys: |
             certificates-
@@ -37,9 +37,9 @@ jobs:
         env:
           CERT_ENCRYPTION_KEY: ${{ secrets.CERT_ENCRYPTION_KEY }}
         run: |
-          if [ -f "caddy/config/certificates.tar.gz.enc" ]; then
+          if [ -f "traefik/certs/certificates.tar.gz.enc" ]; then
             echo "📦 Restoring cached certificates..."
-            openssl enc -aes-256-cbc -d -in caddy/config/certificates.tar.gz.enc -out certificates.tar.gz -k "$CERT_ENCRYPTION_KEY"
+            openssl enc -aes-256-cbc -d -in traefik/certs/certificates.tar.gz.enc -out certificates.tar.gz -k "$CERT_ENCRYPTION_KEY"
             echo "📋 Certificate files being restored:"
             tar -tzf certificates.tar.gz
             tar -xzf certificates.tar.gz
@@ -97,12 +97,12 @@ jobs:
         env:
           CERT_ENCRYPTION_KEY: ${{ secrets.CERT_ENCRYPTION_KEY }}
         run: |
-          if [ -d "caddy/config" ]; then
-            sudo chown -R $USER:$USER caddy/config
+          if [ -d "traefik/certs" ]; then
+            sudo chown -R $USER:$USER traefik/certs
             echo "🔍 Looking for certificate files to archive..."
 
             # Archive only certificate files, exclude logs and temporary files
-            CERT_FILES=$(find caddy/config -name "*.crt" -o -name "*.key" -o -name "*.pem")
+            CERT_FILES=$(find traefik/certs -name "*.crt" -o -name "*.key" -o -name "*.pem" -o -name "acme.json")
             CERT_COUNT=$(echo "$CERT_FILES" | wc -l)
             echo "📋 Found $CERT_COUNT certificate files:"
             echo "$CERT_FILES"
@@ -128,7 +128,7 @@ jobs:
             fi
 
             # Always encrypt for potential caching
-            openssl enc -aes-256-cbc -in certificates.tar.gz -out caddy/config/certificates.tar.gz.enc -k "$CERT_ENCRYPTION_KEY"
+            openssl enc -aes-256-cbc -in certificates.tar.gz -out traefik/certs/certificates.tar.gz.enc -k "$CERT_ENCRYPTION_KEY"
             rm certificates.tar.gz
           fi
 
@@ -136,7 +136,7 @@ jobs:
         if: always() && env.CERTS_CHANGED == 'true'
         uses: actions/cache/save@v4
         with:
-          path: caddy/config/certificates.tar.gz.enc
+          path: traefik/certs/certificates.tar.gz.enc
           key: certificates-${{ github.run_id }}
 
       - name: Stop and remove Docker Compose services
