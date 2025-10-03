@@ -57,13 +57,14 @@ jobs:
           TAILSCALE_CLIENT_SECRET: ${{secrets.TAILSCALE_CLIENT_SECRET}}
           TS_TAG: ${{vars.TS_TAG}}
           DOMAIN: ${{secrets.DOMAIN}}
+          PARTITION: ${{vars.PARTITION}}
           CF_API_EMAIL: ${{secrets.CF_API_EMAIL}}
           CF_DNS_API_TOKEN: ${{secrets.CF_DNS_API_TOKEN}}
-        run: docker compose up -d --wait traefik-https-check
+        run: docker compose up -d --wait update-dns
 
-      - name: Show healthcheck logs
-        if: always()
-        run: docker inspect --format='{{range .State.Health.Log}}{{.Output}}{{end}}' u-at-proto-traefik-https-check-1
+      # - name: Show healthcheck logs
+      #   if: always()
+      #   run: docker inspect --format='{{range .State.Health.Log}}{{.Output}}{{end}}' u-at-proto-traefik-https-check-1
 
       # - name: Run Jest E2E tests
       #   env:
