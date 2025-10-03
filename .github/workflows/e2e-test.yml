@@ -60,6 +60,8 @@ jobs:
           CF_DNS_API_TOKEN: ${{secrets.CF_DNS_API_TOKEN}}
         run: docker compose up -d
 
+      - run: docker compose up -d --wait --no-deps traefik-https-check
+
       # - name: Run Jest E2E tests
       #   env:
       #     TS_AUTHKEY: ${{secrets.TS_AUTHKEY}}
