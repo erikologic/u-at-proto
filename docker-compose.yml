@@ -108,7 +108,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 10
-      start_interval: 10s
+      start_period: 10s
 
   # whoami:
   #   image: traefik/whoami
