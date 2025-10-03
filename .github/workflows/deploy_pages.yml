@@ -53,7 +53,9 @@ jobs:
         run: |
           mkdir -p gh-pages/artifacts
           cd gh-pages/artifacts
-          tree -L 2 -P '**/' -r -H . -T artifacts -o index.html
+          tree -L 2 -P '**/' -r -H . -T "E2E Test Reports" -o index.html
+          cd ../..
+          echo '<html><head><meta http-equiv="refresh" content="0; url=artifacts/" /></head><body>Redirecting to <a href="artifacts/">artifacts</a>...</body></html>' > gh-pages/index.html
       - name: Upload GH Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
