@@ -57,9 +57,6 @@ jobs:
       - name: Start Docker Compose services
         env:
           TAILSCALE_CLIENT_SECRET: ${{secrets.TAILSCALE_CLIENT_SECRET}}
-          TS_TAG: ${{vars.TS_TAG}}
-          DOMAIN: ${{secrets.DOMAIN}}
-          PARTITION: ${{vars.PARTITION}}
           CF_API_EMAIL: ${{secrets.CF_API_EMAIL}}
           CF_DNS_API_TOKEN: ${{secrets.CF_DNS_API_TOKEN}}
         run: docker compose up update-dns
@@ -71,7 +68,6 @@ jobs:
       # - name: Run Jest E2E tests
       #   env:
       #     TS_AUTHKEY: ${{secrets.TS_AUTHKEY}}
-      #     DOMAIN: ${{secrets.DOMAIN}}
       #     CF_API_EMAIL: ${{secrets.CF_API_EMAIL}}
       #     CF_DNS_API_TOKEN: ${{secrets.CF_DNS_API_TOKEN}}
       #   run: docker compose --profile test run --rm e2e-jest
@@ -79,7 +75,6 @@ jobs:
       # - name: Run Playwright E2E tests
       #   env:
       #     TS_AUTHKEY: ${{secrets.TS_AUTHKEY}}
-      #     DOMAIN: ${{secrets.DOMAIN}}
       #     CF_API_EMAIL: ${{secrets.CF_API_EMAIL}}
       #     CF_DNS_API_TOKEN: ${{secrets.CF_DNS_API_TOKEN}}
       #   run: docker compose --profile test run --rm e2e-playwright
@@ -96,7 +91,6 @@ jobs:
         if: always()
         env:
           TS_AUTHKEY: ${{secrets.TS_AUTHKEY}}
-          DOMAIN: ${{secrets.DOMAIN}}
           CF_API_EMAIL: ${{secrets.CF_API_EMAIL}}
           CF_DNS_API_TOKEN: ${{secrets.CF_DNS_API_TOKEN}}
         run: docker compose logs -n all
