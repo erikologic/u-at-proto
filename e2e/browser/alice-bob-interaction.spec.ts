@@ -1,4 +1,5 @@
 import { test, expect, Page } from "@playwright/test";
+import { setTimeout } from "timers/promises";
 
 const DOMAIN = process.env.DOMAIN || "u-at-proto.work";
 const PARTITION = process.env.PARTITION || "local";
@@ -50,88 +51,92 @@ async function signUp(page: Page, name: string, pdsUrl: string) {
   });
 }
 
-async function createPost(page: any, text: string) {
+async function createPost(page: Page, text: string) {
   await page.getByRole("button", { name: /compose.*post|new post/i }).click();
   await page.getByRole("textbox", { name: "Rich-Text Editor" }).fill(text);
   await page
     .getByText("CancelPost")
     .getByRole("button", { name: /post/i })
     .click();
+  await setTimeout(500);
+  await page.reload();
+}
+
+async function replyToPost(page: Page, postText: string, replyText: string) {
+  await page
+    .getByRole("link", { name: postText, exact: false })
+    .getByRole("button", { name: /reply/i })
+    .click();
+  await page.getByRole("textbox", { name: "Rich-Text Editor" }).fill(replyText);
+  await page
+    .getByText("CancelReply")
+    .getByRole("button", { name: /reply/i })
+    .click();
+  await setTimeout(5000);
+  await page.reload();
+}
+
+async function likePost(page: Page, postText: string) {
+  await page
+    .getByRole("link", { name: postText, exact: false })
+    .getByRole("button", { name: /like/i })
+    .click();
+  await setTimeout(5000);
+  await page.reload();
 }
 
 test.describe("Alice and Bob interaction", () => {
-  test("complete interaction flow", async ({ browser }) => {
+  test("complete interaction flow", async ({ browser }, testInfo) => {
     const aliceName = `alice${uniqueId()}`;
     const alicePostText = `Hello from ${aliceName}`;
 
-    const aliceContext = await browser.newContext();
-    const alicePage = await aliceContext.newPage();
+    const aliceContext = await browser.newContext({
+      ...(process.env.CI && { recordVideo: { dir: testInfo.outputDir } }),
+    });
+    const aliceBrowser = await aliceContext.newPage();
 
-    await alicePage.goto(BASE_URL);
-    await signUp(alicePage, aliceName, PDS_URL);
+    await aliceBrowser.goto(BASE_URL);
+    await signUp(aliceBrowser, aliceName, PDS_URL);
 
-    await createPost(alicePage, alicePostText);
-    await alicePage.reload();
+    await createPost(aliceBrowser, alicePostText);
     await expect(
-      alicePage.getByText(alicePostText, { exact: false })
+      aliceBrowser.getByText(alicePostText, { exact: false })
     ).toBeVisible();
 
     const bobName = `bob${uniqueId()}`;
-    const bobContext = await browser.newContext();
-    const bobPage = await bobContext.newPage();
+    const bobContext = await browser.newContext({
+      ...(process.env.CI && { recordVideo: { dir: testInfo.outputDir } }),
+    });
+    const bobBrowser = await bobContext.newPage();
 
-    await bobPage.goto(BASE_URL);
-    await signUp(bobPage, bobName, PDS_URL);
+    await bobBrowser.goto(BASE_URL);
+    await signUp(bobBrowser, bobName, PDS_URL);
 
-    await expect(bobPage.getByText(alicePostText)).toBeVisible();
-    await bobPage
-      .getByRole("link", { name: alicePostText, exact: false })
-      .getByRole("button", { name: /reply/i })
-      .click();
+    await expect(bobBrowser.getByText(alicePostText)).toBeVisible();
+    await likePost(bobBrowser, alicePostText);
 
     const bobReplyText = `Hello ${aliceName}, this is ${bobName}`;
-    await bobPage
-      .getByRole("textbox", { name: "Rich-Text Editor" })
-      .fill(bobReplyText);
-    await bobPage.getByText("CancelReply").getByRole("button", { name: /reply/i }).click();
+    await replyToPost(bobBrowser, alicePostText, bobReplyText);
 
-    await expect(bobPage.getByText(bobReplyText)).toBeVisible();
+    await expect(bobBrowser.getByText(bobReplyText)).toBeVisible();
 
-    await bobPage
-      .getByRole("link", { name: alicePostText, exact: false })
-      .getByRole("button", { name: /like/i })
-      .click();
+    await aliceBrowser.getByRole("link", { name: /notifications/i }).click();
+    await aliceBrowser.reload();
+    await expect(aliceBrowser.getByText(bobReplyText)).toBeVisible();
 
-    await alicePage.getByRole("link", { name: /notifications/i }).click();
+    await likePost(aliceBrowser, bobReplyText);
+    await replyToPost(aliceBrowser, bobReplyText, `Thanks ${bobName}!`);
+    await aliceBrowser.getByRole("link", { name: bobReplyText, exact: false }).click();
+    await expect(aliceBrowser.getByText(`Thanks ${bobName}!`)).toBeVisible();
 
-    await expect(alicePage.getByText(bobReplyText)).toBeVisible();
+    await bobBrowser.reload();
+    await bobBrowser.getByRole("link", { name: /notifications/i }).click();
+    await likePost(bobBrowser, `Thanks ${bobName}!`);
 
-    await alicePage
-      .getByRole("link", { name: bobReplyText, exact: false })
-      .getByRole("button", { name: /like/i })
-      .click();
-
-    await alicePage
-      .getByRole("link", { name: bobReplyText, exact: false })
-      .getByRole("button", { name: /reply/i })
-      .click();
-    await alicePage.getByRole("textbox", { name: "Rich-Text Editor" }).fill(`Thanks ${bobName}!`);
-    await alicePage.getByText("CancelReply").getByRole("button", { name: /reply/i }).click();
-
-    await expect(alicePage.getByText(`Thanks ${bobName}!`)).toBeVisible();
-
-    await bobPage.reload();
-    await bobPage.getByRole("link", { name: /notifications/i }).click();
-
-    await bobPage
-      .getByRole("link", { name: `Thanks ${bobName}!`, exact: false })
-      .getByRole("button", { name: /like/i })
-      .click();
-
-    await alicePage.getByRole("link", { name: /home/i }).click();
-    await alicePage.reload();
+    await aliceBrowser.getByRole("link", { name: /home/i }).click();
+    await aliceBrowser.reload();
     await expect(
-      alicePage
+      aliceBrowser
         .getByRole("link", { name: `Thanks ${bobName}!`, exact: false })
         .getByRole("button", { name: /like.*1/i })
     ).toBeVisible();
