@@ -31,11 +31,16 @@ jobs:
               --workflow "E2E Tests" \
               --json databaseId,displayTitle,status,headSha \
           | jq -c '.[]' \
-          | while read object; do
-              databaseId=$(echo "$object" | jq -r '.databaseId')
-              displayTitle=$(echo "$object" | jq -r '.displayTitle')
-              status=$(echo "$object" | jq -r '.status')
-              headSha=$(echo "$object" | jq -r '.headSha')
+          | while read -r object; do
+              databaseId=$(echo "$object" | jq -r '.databaseId // empty')
+              displayTitle=$(echo "$object" | jq -r '.displayTitle // empty')
+              status=$(echo "$object" | jq -r '.status // empty')
+              headSha=$(echo "$object" | jq -r '.headSha // empty')
+
+              if [ -z "$databaseId" ] || [ -z "$headSha" ]; then
+                echo "Skipping invalid run data"
+                continue
+              fi
 
               filename=$(echo "run:${databaseId}-sha:${headSha:0:7}-status:${status}-title:${displayTitle}" | sed -E 's/[^[:alnum:]_-]/_/g; s/ +/_/g')
               directory="${SAVE_PATH}/${filename:0:60}"
@@ -45,8 +50,10 @@ jobs:
           done
           wait
       - name: Generate index for artifacts
-        working-directory: ./gh-pages/artifacts
-        run: tree -L 2 -P '**/' -r -H . -T artifacts -o index.html
+        run: |
+          mkdir -p gh-pages/artifacts
+          cd gh-pages/artifacts
+          tree -L 2 -P '**/' -r -H . -T artifacts -o index.html
       - name: Upload GH Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
