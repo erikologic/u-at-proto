@@ -58,15 +58,14 @@ create_dns_record() {
   local name="$2"
   local ip="$3"
   echo "Creating DNS record ${name} -> ${ip}"
-  echo "Zone ID: ${zone_id}"
-  local response=$(curl -v -X POST "https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records" \
+  local response=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records" \
     -H "Authorization: Bearer ${CF_DNS_API_TOKEN}" \
     -H "Content-Type: application/json" \
-    --data "{\"type\":\"A\",\"name\":\"${name}\",\"content\":\"${ip}\",\"ttl\":60,\"proxied\":false}" 2>&1)
-  echo "Curl response: $response"
-  local success=$(echo "$response" | jq -r '.success' 2>/dev/null)
+    --data "{\"type\":\"A\",\"name\":\"${name}\",\"content\":\"${ip}\",\"ttl\":60,\"proxied\":false}")
+  local success=$(echo "$response" | jq -r '.success')
   if [ "$success" != "true" ]; then
-    echo "Failed to create DNS record"
+    echo "Failed to create DNS record" >&2
+    echo "Response: $response" >&2
     exit 1
   fi
   echo "DNS record created successfully"
