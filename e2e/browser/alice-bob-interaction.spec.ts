@@ -47,7 +47,7 @@ async function signUp(page: Page, name: string, pdsUrl: string) {
   }
 
   await expect(page.getByText(/what.*hot/i).first()).toBeVisible({
-    timeout: 15000,
+    timeout: 1500,
   });
 }
 
@@ -58,7 +58,7 @@ async function createPost(page: Page, text: string) {
     .getByText("CancelPost")
     .getByRole("button", { name: /post/i })
     .click();
-  await setTimeout(500);
+  await setTimeout(2000);
   await page.reload();
 }
 
@@ -72,7 +72,7 @@ async function replyToPost(page: Page, postText: string, replyText: string) {
     .getByText("CancelReply")
     .getByRole("button", { name: /reply/i })
     .click();
-  await setTimeout(5000);
+  await setTimeout(2000);
   await page.reload();
 }
 
@@ -81,7 +81,7 @@ async function likePost(page: Page, postText: string) {
     .getByRole("link", { name: postText, exact: false })
     .getByRole("button", { name: /like/i })
     .click();
-  await setTimeout(5000);
+  await setTimeout(2000);
   await page.reload();
 }
 
