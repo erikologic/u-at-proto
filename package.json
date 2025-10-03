@@ -4,7 +4,11 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "test:browser": "playwright test",
+    "test:browser:ui": "playwright test --ui",
+    "test:browser:headed": "playwright test --headed",
+    "playwright:codegen": "playwright codegen"
   },
   "keywords": [],
   "author": "",
@@ -12,6 +16,7 @@
   "description": "",
   "devDependencies": {
     "@babel/preset-env": "^7.28.3",
+    "@playwright/test": "^1.55.1",
     "@skyware/firehose": "^0.5.2",
     "@types/jest": "^29.0.0",
     "@types/node": "^22.18.6",
