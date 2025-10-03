@@ -4,11 +4,12 @@ services:
   # =============================================================================
   tailscale-traefik:
     image: tailscale/tailscale
-    hostname: traefik
     environment:
-      - TS_AUTHKEY=${TS_AUTHKEY}
+      - TS_AUTHKEY=${TAILSCALE_CLIENT_SECRET}
+      - TS_EXTRA_ARGS=--advertise-tags=tag:${TS_TAG}
       - TS_STATE_DIR=/var/lib/tailscale
       - TS_USERSPACE=false
+      - TS_HOSTNAME=traefik.${DOMAIN}
     volumes:
       - tailscale-traefik-state:/var/lib/tailscale
       - /dev/net/tun:/dev/net/tun
@@ -102,7 +103,8 @@ services:
       test: ["CMD-SHELL", "curl -fsSL --max-time 10 https://traefik.${DOMAIN}"]
       interval: 30s
       timeout: 10s
-      retries: 5
+      retries: 10
+
 
   # whoami:
   #   image: traefik/whoami
