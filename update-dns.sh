@@ -1,67 +1,83 @@
 #!/bin/sh
 set -e
 
-echo "Waiting for Tailscale to be ready..."
-sleep 3
+wait_for_tailscale() {
+  sleep 3
+  mkdir -p /var/run/tailscale
+  ln -sf /tmp/tailscaled.sock /var/run/tailscale/tailscaled.sock
+}
 
-mkdir -p /var/run/tailscale
-ln -sf /tmp/tailscaled.sock /var/run/tailscale/tailscaled.sock
+get_tailscale_ip() {
+  tailscale ip -4
+}
 
-TAILSCALE_IP=$(tailscale ip -4)
+get_zone_id() {
+  local base_domain="$1"
+  curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=${base_domain}" \
+    -H "Authorization: Bearer ${CF_DNS_API_TOKEN}" \
+    -H "Content-Type: application/json" | jq -r '.result[0].id'
+}
 
-if [ -z "$TAILSCALE_IP" ]; then
-  echo "Error: Could not get Tailscale IP"
-  exit 1
-fi
+get_record_id() {
+  local zone_id="$1"
+  local record_name="$2"
+  curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records?name=${record_name}&type=A" \
+    -H "Authorization: Bearer ${CF_DNS_API_TOKEN}" \
+    -H "Content-Type: application/json" | jq -r '.result[0].id'
+}
 
-echo "Updating Cloudflare DNS A record for *.${PARTITION}.${DOMAIN} to ${TAILSCALE_IP}"
-
-ZONE_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=${DOMAIN#*.}" \
-  -H "Authorization: Bearer ${CF_DNS_API_TOKEN}" \
-  -H "Content-Type: application/json" | jq -r '.result[0].id')
-
-SUBDOMAIN="*.${DOMAIN%%.*}"
-
-RECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records?name=${SUBDOMAIN}.${DOMAIN#*.}&type=A" \
-  -H "Authorization: Bearer ${CF_DNS_API_TOKEN}" \
-  -H "Content-Type: application/json" | jq -r '.result[0].id')
-
-if [ "$RECORD_ID" = "null" ] || [ -z "$RECORD_ID" ]; then
-  echo "Creating new A record for ${SUBDOMAIN}"
-  curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records" \
+create_dns_record() {
+  local zone_id="$1"
+  local name="$2"
+  local ip="$3"
+  curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records" \
     -H "Authorization: Bearer ${CF_DNS_API_TOKEN}" \
     -H "Content-Type: application/json" \
-    --data "{\"type\":\"A\",\"name\":\"${SUBDOMAIN}\",\"content\":\"${TAILSCALE_IP}\",\"ttl\":60,\"proxied\":false}"
-else
-  echo "Updating existing A record ID: ${RECORD_ID}"
-  curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records/${RECORD_ID}" \
+    --data "{\"type\":\"A\",\"name\":\"${name}\",\"content\":\"${ip}\",\"ttl\":60,\"proxied\":false}"
+}
+
+update_dns_record() {
+  local zone_id="$1"
+  local record_id="$2"
+  local name="$3"
+  local ip="$4"
+  curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records/${record_id}" \
     -H "Authorization: Bearer ${CF_DNS_API_TOKEN}" \
     -H "Content-Type: application/json" \
-    --data "{\"type\":\"A\",\"name\":\"${SUBDOMAIN}\",\"content\":\"${TAILSCALE_IP}\",\"ttl\":60,\"proxied\":false}"
-fi
+    --data "{\"type\":\"A\",\"name\":\"${name}\",\"content\":\"${ip}\",\"ttl\":60,\"proxied\":false}"
+}
 
-printf "\nDNS record updated successfully\n"
+main() {
+  wait_for_tailscale
 
-echo "Updating Cloudflare DNS A record for *.pds.${PARTITION}.${DOMAIN} to ${TAILSCALE_IP}"
+  local ip=$(get_tailscale_ip)
+  if [ -z "$ip" ]; then
+    exit 1
+  fi
 
-PDS_SUBDOMAIN="*.pds.${DOMAIN%%.*}"
+  local full_domain="${PARTITION}.${DOMAIN}"
+  local base_domain="${full_domain#*.}"
+  local partition_prefix="${full_domain%%.*}"
 
-PDS_RECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records?name=${PDS_SUBDOMAIN}.${DOMAIN#*.}&type=A" \
-  -H "Authorization: Bearer ${CF_DNS_API_TOKEN}" \
-  -H "Content-Type: application/json" | jq -r '.result[0].id')
+  local zone_id=$(get_zone_id "$base_domain")
 
-if [ "$PDS_RECORD_ID" = "null" ] || [ -z "$PDS_RECORD_ID" ]; then
-  echo "Creating new A record for ${PDS_SUBDOMAIN}"
-  curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records" \
-    -H "Authorization: Bearer ${CF_DNS_API_TOKEN}" \
-    -H "Content-Type: application/json" \
-    --data "{\"type\":\"A\",\"name\":\"${PDS_SUBDOMAIN}\",\"content\":\"${TAILSCALE_IP}\",\"ttl\":60,\"proxied\":false}"
-else
-  echo "Updating existing PDS A record ID: ${PDS_RECORD_ID}"
-  curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records/${PDS_RECORD_ID}" \
-    -H "Authorization: Bearer ${CF_DNS_API_TOKEN}" \
-    -H "Content-Type: application/json" \
-    --data "{\"type\":\"A\",\"name\":\"${PDS_SUBDOMAIN}\",\"content\":\"${TAILSCALE_IP}\",\"ttl\":60,\"proxied\":false}"
-fi
+  local wildcard="*.${partition_prefix}"
+  local wildcard_full="${wildcard}.${base_domain}"
+  local record_id=$(get_record_id "$zone_id" "$wildcard_full")
+  if [ "$record_id" = "null" ] || [ -z "$record_id" ]; then
+    create_dns_record "$zone_id" "$wildcard" "$ip"
+  else
+    update_dns_record "$zone_id" "$record_id" "$wildcard" "$ip"
+  fi
 
-printf "\nPDS wildcard DNS record updated successfully\n"
+  local pds_wildcard="*.pds.${partition_prefix}"
+  local pds_wildcard_full="${pds_wildcard}.${base_domain}"
+  local pds_record_id=$(get_record_id "$zone_id" "$pds_wildcard_full")
+  if [ "$pds_record_id" = "null" ] || [ -z "$pds_record_id" ]; then
+    create_dns_record "$zone_id" "$pds_wildcard" "$ip"
+  else
+    update_dns_record "$zone_id" "$pds_record_id" "$pds_wildcard" "$ip"
+  fi
+}
+
+main

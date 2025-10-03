@@ -25,7 +25,8 @@ services:
     network_mode: service:tailscale-traefik
     environment:
       - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
-      - DOMAIN=${PARTITION}.${DOMAIN}
+      - DOMAIN=${DOMAIN}
+      - PARTITION=${PARTITION}
       - TS_STATE_DIR=/var/lib/tailscale
     volumes:
       - ./update-dns.sh:/update-dns.sh:ro
@@ -107,7 +108,7 @@ services:
         ]
       interval: 30s
       timeout: 10s
-      retries: 10
+      retries: 5
       start_period: 10s
 
   # whoami:
@@ -446,7 +447,8 @@ services:
   #       condition: service_healthy
   #   working_dir: /app
   #   environment:
-  #     - DOMAIN=${PARTITION}.${DOMAIN}
+  #     - DOMAIN=${DOMAIN}
+  #     - PARTITION=${PARTITION}
   #   volumes:
   #     - ./prepare.sh:/app/prepare.sh:ro
   #   command: sh /app/prepare.sh
@@ -544,7 +546,8 @@ services:
   #   image: node:22-alpine
   #   working_dir: /app
   #   environment:
-  #     - DOMAIN=${PARTITION}.${DOMAIN}
+  #     - DOMAIN=${DOMAIN}
+  #     - PARTITION=${PARTITION}
   #   volumes:
   #     - ./e2e:/app/e2e
   #     - ./jest.config.js:/app/jest.config.js
@@ -566,7 +569,8 @@ services:
   #   image: mcr.microsoft.com/playwright:v1.55.1-noble
   #   working_dir: /app
   #   environment:
-  #     - DOMAIN=${PARTITION}.${DOMAIN}
+  #     - DOMAIN=${DOMAIN}
+  #     - PARTITION=${PARTITION}
   #     - CI=true
   #   volumes:
   #     - ./e2e:/app/e2e
