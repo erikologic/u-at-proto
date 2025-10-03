@@ -23,6 +23,8 @@ export default defineConfig({
     trace: process.env.CI ? "on" : "on-first-retry",
     video: process.env.CI ? "on" : undefined,
     screenshot: "only-on-failure",
+    actionTimeout: 2_000,
+    navigationTimeout: 5_000,
   },
 
   projects: [

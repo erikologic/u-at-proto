@@ -263,6 +263,7 @@ services:
 
   jetstream:
     image: ghcr.io/erikologic/jetstream:latest
+    restart: always
     environment:
       - JETSTREAM_DATA_DIR=/data
       - JETSTREAM_WS_URL=wss://relay.${PARTITION}.${DOMAIN}/xrpc/com.atproto.sync.subscribeRepos
