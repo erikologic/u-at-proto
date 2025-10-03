@@ -60,7 +60,7 @@ jobs:
           PARTITION: ${{vars.PARTITION}}
           CF_API_EMAIL: ${{secrets.CF_API_EMAIL}}
           CF_DNS_API_TOKEN: ${{secrets.CF_DNS_API_TOKEN}}
-        run: docker compose up -d --wait update-dns
+        run: docker compose up update-dns
 
       # - name: Show healthcheck logs
       #   if: always()
