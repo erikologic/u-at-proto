@@ -427,6 +427,8 @@ services:
   prepare:
     image: curlimages/curl:latest
     depends_on:
+      traefik-https-check:
+        condition: service_healthy
       relay:
         condition: service_healthy
     working_dir: /app
@@ -540,7 +542,7 @@ services:
       - ./tsconfig.json:/app/tsconfig.json
     depends_on:
       prepare:
-        condition: service_started
+        condition: service_healthy
       jetstream:
         condition: service_healthy
       bsky:
