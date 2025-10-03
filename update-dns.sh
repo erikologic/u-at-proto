@@ -38,8 +38,8 @@ get_zone_id() {
     -H "Content-Type: application/json")
   local zone_id=$(echo "$response" | jq -r '.result[0].id')
   if [ "$zone_id" = "null" ] || [ -z "$zone_id" ]; then
-    echo "Failed to get zone ID for ${base_domain}"
-    echo "Response: $response"
+    echo "Failed to get zone ID for ${base_domain}" >&2
+    echo "Response: $response" >&2
     exit 1
   fi
   echo "$zone_id"

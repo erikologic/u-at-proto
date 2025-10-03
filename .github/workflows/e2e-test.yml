@@ -10,6 +10,8 @@ concurrency:
 
 env:
   PARTITION: ${{vars.PARTITION}}
+  DOMAIN: ${{vars.DOMAIN}}
+  TS_TAG: ${{vars.TS_TAG}}
 
 jobs:
   e2e-test:
