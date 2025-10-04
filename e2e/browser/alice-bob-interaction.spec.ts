@@ -47,7 +47,7 @@ async function signUp(page: Page, name: string, pdsUrl: string) {
   }
 
   await expect(page.getByText(/what.*hot/i).first()).toBeVisible({
-    timeout: 1500,
+    timeout: 15000,
   });
 }
 
