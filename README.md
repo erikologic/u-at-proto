@@ -1,30 +1,58 @@
 [![E2E Tests](https://github.com/erikologic/u-at-proto/actions/workflows/e2e-test.yml/badge.svg)](https://github.com/erikologic/u-at-proto/actions/workflows/e2e-test.yml)
 
-# ATProto Local Network
+# u-at-proto
 
-A canonical, production-ready implementation of the AT Protocol stack for local development and testing. This project provides a complete ATProto environment with all services configured and ready to use.
+**A canonical ATProto implementation for local development and end-to-end testing.**
 
-## What's Included
+This project provides a complete, production-like AT Protocol network running locally with Docker Compose. It's designed to be the reference implementation for developers building on ATProto who need a reliable local environment with comprehensive E2E test coverage.
 
-A fully functional ATProto network with:
+## Why This Project?
 
-- **PLC** - DID registry service
-- **PDS** - Personal Data Server for user data
-- **Relay** - Firehose relay for real-time events
-- **Jetstream** - Streaming service for filtered events
-- **Ozone** - Moderation service
-- **Bsky** - AppView service for social features
-- **Feed Generator** - Custom algorithmic feed with automatic DID injection
-- **Social App** - Official Bluesky web frontend
-- **Traefik** - Reverse proxy with automatic HTTPS via Let's Encrypt
-- **Comprehensive E2E Tests** - Both API (Jest) and browser (Playwright) tests
+Building ATProto applications requires a complete network stack. This project solves common pain points:
+
+✅ **Zero Manual Configuration** - All services auto-configure and discover each other
+✅ **Production-Like Environment** - Real HTTPS certificates via Let's Encrypt + Tailscale
+✅ **Comprehensive Test Suite** - API tests (Jest) + Browser tests (Playwright)
+✅ **E2E Test Reference** - Canonical examples of testing ATProto applications
+✅ **CI/CD Ready** - GitHub Actions workflows with artifact publishing
+
+## Components
+
+### Core ATProto Services
+
+- **PLC** - DID registry for decentralized identity
+- **PDS** - Personal Data Server (user accounts and data)
+- **Relay** - Firehose for real-time event streaming
+- **Jetstream** - Filtered event stream consumer
+- **AppView (Bsky)** - Social graph and feed aggregation
+- **Ozone** - Moderation and labeling service
+
+### Application Layer
+
+- **Feed Generator** - Custom algorithmic feed with auto-DID injection
+- **Social App** - Official Bluesky web client
+
+### Infrastructure
+
+- **Tailscale** - Secure mesh VPN for remote access
+- **Cloudflare** - DNS management / SSL certificate provisioning / Tunneling (todo)
+- **Traefik** - Reverse proxy with automatic HTTPS (Let's Encrypt)
+- **PostgreSQL** - Shared database for services
+- **Redis** - Caching and session storage
+
+### Testing
+
+- **Jest E2E Tests** - API-level validation of ATProto services
+- **Playwright E2E Tests** - Browser-based user interaction flows
+- **GitHub Actions** - Automated CI/CD with test artifact publishing
 
 ## Quick Start
 
 ### Prerequisites
 
 - Docker and Docker Compose
-- Tailscale account (for HTTPS support)
+- Cloudflare domain with DNS API access (for SSL certificates via Let's Encrypt)
+- Tailscale account (for Tailscale network integration)
 - Node.js 22+ (for local test execution)
 
 ### 1. Configure Environment
@@ -34,10 +62,11 @@ cp .env.example .env
 ```
 
 Edit `.env` and configure:
-- `TS_AUTHKEY` - Tailscale auth key
-- `DOMAIN` - Your Tailscale domain
-- `CF_API_EMAIL` - Cloudflare email
-- `CF_DNS_API_TOKEN` - Cloudflare DNS API token
+- `DOMAIN` - Your domain name (e.g., `example.com`)
+- `PARTITION` - Environment logical partition (e.g., `local`, `staging`)
+- `CF_API_EMAIL` - Cloudflare account email
+- `CF_DNS_API_TOKEN` - Cloudflare DNS API token (for Let's Encrypt DNS challenge)
+- `TAILSCALE_CLIENT_SECRET` / `TS_TAG` - Tailscale OAuth client secret and tag (optional)
 
 ### 2. Start Services
 
@@ -54,17 +83,19 @@ docker compose ps
 ```
 
 Access services at:
-- Social App: `https://social.{DOMAIN}`
-- Bsky AppView: `https://bsky.{DOMAIN}`
-- PDS: `https://pds.{DOMAIN}`
-- Feed Generator: `https://feedgen.{DOMAIN}`
+- Social App: `https://social.{PARTITION}.{DOMAIN}`
+- Bsky AppView: `https://bsky.{PARTITION}.{DOMAIN}`
+- PDS: `https://pds.{PARTITION}.{DOMAIN}`
+- Relay: `https://relay.{PARTITION}.{DOMAIN}`
+- Jetstream: `https://jetstream.{PARTITION}.{DOMAIN}`
+- Feed Generator: `https://feedgen.{PARTITION}.{DOMAIN}`
 
 ## Running Tests
 
 ### Complete Test Suite
 
 ```bash
-# Tear down, rebuild, and test everything
+# Tear down the env clean, rebuild, and test everything
 docker compose down -v
 docker compose up -d --wait
 docker compose --profile test up --abort-on-container-exit
@@ -172,19 +203,6 @@ The feed generator automatically:
 
 No manual DID configuration needed - tear down and rebuild anytime.
 
-### SSL Certificate Management
-
-- **Local**: Traefik + Let's Encrypt with automatic HTTPS
-- **CI**: Encrypted certificate caching to avoid rate limits
-- **Tailscale**: MagicDNS for service discovery
-
-### Test Standardization
-
-Both local and CI use identical Docker images:
-- Jest: `node:22-alpine`
-- Playwright: `mcr.microsoft.com/playwright:v1.49.1-noble`
-
-Ensures consistent behavior across environments.
 
 ## GitHub Secrets Required
 
@@ -192,11 +210,13 @@ Add to Settings → Secrets and variables → Actions:
 
 | Secret | Description |
 |--------|-------------|
-| `TS_AUTHKEY` | Tailscale authentication key |
-| `DOMAIN` | Your Tailscale domain (e.g., `ts.example.com`) |
+| `DOMAIN` | Your domain name (e.g., `example.com`) |
+| `PARTITION` | Environment partition (e.g., `ci`, `staging`) |
 | `CF_API_EMAIL` | Cloudflare account email |
-| `CF_DNS_API_TOKEN` | Cloudflare DNS API token |
+| `CF_DNS_API_TOKEN` | Cloudflare DNS API token (for Let's Encrypt DNS challenge) |
 | `CERT_ENCRYPTION_KEY` | Random string for certificate encryption |
+| `TS_CLIENT_SECRET` | Tailscale OAuth client secret |
+| `TS_TAG` | Tailscale tag |
 
 ## Useful Commands
 
@@ -211,14 +231,14 @@ docker compose restart social
 docker compose exec postgres psql -U postgres
 
 # Clean restart (removes all data)
-docker compose down -v && docker compose up -d
+docker compose down -v && docker compose up -d --wait
 
 # Check feedgen DID
 cat /path/to/volume/publisher-did.txt
 docker compose exec feedgen cat /shared/publisher-did.txt
 
 # Query feed directly
-curl "https://bsky.{DOMAIN}/xrpc/app.bsky.feed.getFeed?feed=at://did:plc:{DID}/app.bsky.feed.generator/whats-hot"
+curl "https://bsky.{PARTITION}.{DOMAIN}/xrpc/app.bsky.feed.getFeed?feed=at://did:plc:{DID}/app.bsky.feed.generator/whats-hot"
 ```
 
 ## Credits
