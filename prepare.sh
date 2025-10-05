@@ -6,15 +6,15 @@ set -ex
 # STEP 1: Request relay to crawl the PDS
 # =============================================================================
 curl -u admin:admin123 \
-    -X POST "https://relay.${PARTITION}.${DOMAIN}/admin/pds/requestCrawl" \
+    -X POST "https://${RELAY_HOST}/admin/pds/requestCrawl" \
     -H "Content-Type: application/json" \
-    -d "{\"hostname\": \"pds.${PARTITION}.${DOMAIN}\"}"
+    -d "{\"hostname\": \"${PDS_HOST}\"}"
 
 # =============================================================================
 # STEP 2: Wait for feedgen service to be ready
 # =============================================================================
 echo "Waiting for feedgen to be ready..."
-while ! wget --no-verbose --tries=1 --spider "http://feedgen:3000/.well-known/did.json" 2>/dev/null; do
+while ! wget --no-verbose --tries=1 --spider "https://${FEEDGEN_HOST}/.well-known/did.json" 2>/dev/null; do
   echo "Feedgen not ready yet, sleeping..."
   sleep 2
 done
@@ -23,7 +23,7 @@ echo "Feedgen is ready"
 # =============================================================================
 # STEP 3: Configure feedgen account details
 # =============================================================================
-FEEDGEN_HANDLE="${FEEDGEN_HANDLE:-feedgen.pds.${PARTITION}.${DOMAIN}}"
+FEEDGEN_HANDLE="${FEEDGEN_HANDLE:-feedgen.${PDS_HOST}}"
 FEEDGEN_PASSWORD="${FEEDGEN_PASSWORD:-feedgen-password-123}"
 FEEDGEN_EMAIL="${FEEDGEN_EMAIL:-feedgen@example.com}"
 FEEDGEN_DISPLAY_NAME="${FEEDGEN_DISPLAY_NAME:-Whats Hot}"
@@ -34,7 +34,7 @@ FEEDGEN_RECORD_NAME="${FEEDGEN_RECORD_NAME:-whats-hot}"
 # STEP 4: Create feedgen user account on PDS (if it doesn't exist)
 # =============================================================================
 echo "Creating feedgen user account: ${FEEDGEN_HANDLE}"
-CREATE_RESULT=$(curl -s -X POST "https://pds.${PARTITION}.${DOMAIN}/xrpc/com.atproto.server.createAccount" \
+CREATE_RESULT=$(curl -s -X POST "https://${PDS_HOST}/xrpc/com.atproto.server.createAccount" \
   -H "Content-Type: application/json" \
   -d "{
     \"handle\": \"${FEEDGEN_HANDLE}\",
@@ -52,7 +52,7 @@ fi
 # STEP 5: Login as feedgen user and get JWT + DID
 # =============================================================================
 echo "Logging in as feedgen user..."
-LOGIN_RESULT=$(curl -s -X POST "https://pds.${PARTITION}.${DOMAIN}/xrpc/com.atproto.server.createSession" \
+LOGIN_RESULT=$(curl -s -X POST "https://${PDS_HOST}/xrpc/com.atproto.server.createSession" \
   -H "Content-Type: application/json" \
   -d "{
     \"identifier\": \"${FEEDGEN_HANDLE}\",
@@ -72,13 +72,13 @@ echo "Logged in successfully, DID: ${FEEDGEN_DID}"
 # =============================================================================
 # STEP 6: Get the feedgen service DID from its well-known endpoint
 # =============================================================================
-FEEDGEN_SERVICE_DID=$(wget -qO- "http://feedgen:3000/.well-known/did.json" | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
+FEEDGEN_SERVICE_DID=$(wget -qO- "https://${FEEDGEN_HOST}/.well-known/did.json" | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
 
 # =============================================================================
 # STEP 7: Publish the feed generator record to the PDS
 # =============================================================================
 echo "Publishing feed generator record..."
-curl -s -X POST "https://pds.${PARTITION}.${DOMAIN}/xrpc/com.atproto.repo.putRecord" \
+curl -s -X POST "https://${PDS_HOST}/xrpc/com.atproto.repo.putRecord" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${ACCESS_JWT}" \
   -d "{

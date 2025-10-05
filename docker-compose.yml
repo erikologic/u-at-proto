@@ -106,9 +106,9 @@ services:
           "CMD-SHELL",
           "curl -fsSL --max-time 10 https://traefik.${PARTITION}.${DOMAIN}",
         ]
-      interval: 30s
+      interval: 10s
       timeout: 10s
-      retries: 5
+      retries: 10
       start_period: 10s
 
   # =============================================================================
@@ -128,6 +128,19 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  # =============================================================================
+  # OPENTELEMETRY COLLECTOR
+  # =============================================================================
+  otel:
+    profiles: ["otel"]
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4318:4318"
+      - "8126:8126"
 
   # =============================================================================
   # PLC (DID METHOD) SERVICE
@@ -330,6 +343,8 @@ services:
         condition: service_healthy
       plc:
         condition: service_healthy
+      # bsky:
+      #   condition: service_healthy
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.ozone.rule=Host(`ozone.${PARTITION}.${DOMAIN}`)"
@@ -346,19 +361,6 @@ services:
       timeout: 3s
       retries: 3
       start_period: 10s
-
-  # =============================================================================
-  # OPENTELEMETRY COLLECTOR
-  # =============================================================================
-  otel:
-    profiles: ["otel"]
-    image: otel/opentelemetry-collector-contrib:latest
-    command: ["--config=/etc/otel-collector-config.yaml"]
-    volumes:
-      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
-    ports:
-      - "4318:4318"
-      - "8126:8126"
 
   # =============================================================================
   # BSKY SERVICE
@@ -412,6 +414,8 @@ services:
       traefik-https-check:
         condition: service_healthy
       postgres:
+        condition: service_healthy
+      plc:
         condition: service_healthy
       relay:
         condition: service_healthy
@@ -477,14 +481,17 @@ services:
     depends_on:
       traefik-https-check:
         condition: service_healthy
+      pds:
+        condition: service_healthy
       relay:
         condition: service_healthy
       feedgen:
         condition: service_healthy
     working_dir: /app
     environment:
-      - DOMAIN=${DOMAIN}
-      - PARTITION=${PARTITION}
+      - RELAY_HOST=relay.${PARTITION}.${DOMAIN}
+      - PDS_HOST=pds.${PARTITION}.${DOMAIN}
+      - FEEDGEN_HOST=feedgen.${PARTITION}.${DOMAIN}
     volumes:
       - ./prepare.sh:/app/prepare.sh:ro
       - feedgen_publisher_did:/shared
@@ -517,8 +524,6 @@ services:
         condition: service_healthy
       bsky:
         condition: service_healthy
-      feedgen:
-        condition: service_started
       prepare:
         condition: service_healthy
     labels:
