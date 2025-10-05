@@ -1,0 +1,73 @@
+services:
+  relay:
+    image: ghcr.io/erikologic/indigo:relay-latest
+    environment:
+      DATABASE_URL: postgres://relay:relay@postgres:5432/relay
+      RELAY_PLC_HOST: https://plc.${PARTITION}.${DOMAIN}
+      RELAY_ADMIN_PASSWORD: admin123
+      RELAY_PERSIST_DIR: /data/relay/persist
+      RELAY_ALLOW_INSECURE_HOSTS: "true"
+      RELAY_DISABLE_REQUEST_CRAWL: "false"
+      RELAY_API_LISTEN: 0.0.0.0:3000
+      RELAY_ALLOW_PRIVATE_NETWORKS: "true"
+      ENVIRONMENT: dev
+      LOG_LEVEL: trace
+    volumes:
+      - relay_data:/data/relay
+    depends_on:
+      traefik-https-check:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      pds:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.relay.rule=Host(`relay.${PARTITION}.${DOMAIN}`)"
+      - "traefik.http.routers.relay.entrypoints=websecure"
+      - "traefik.http.routers.relay.tls.certresolver=letsencrypt"
+      - "traefik.http.services.relay.loadbalancer.server.port=3000"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --output-document=/dev/null http://localhost:3000/_health",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  jetstream:
+    image: ghcr.io/erikologic/jetstream:latest
+    restart: always
+    environment:
+      - JETSTREAM_DATA_DIR=/data
+      - JETSTREAM_WS_URL=wss://relay.${PARTITION}.${DOMAIN}/xrpc/com.atproto.sync.subscribeRepos
+      - JETSTREAM_LISTEN_ADDR=:6008
+      - JETSTREAM_LIVENESS_TTL=3600s
+    volumes:
+      - jetstream_data:/data
+    depends_on:
+      traefik-https-check:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      relay:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jetstream.rule=Host(`jetstream.${PARTITION}.${DOMAIN}`)"
+      - "traefik.http.routers.jetstream.entrypoints=websecure"
+      - "traefik.http.routers.jetstream.tls.certresolver=letsencrypt"
+      - "traefik.http.services.jetstream.loadbalancer.server.port=6008"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:6008"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  relay_data:
+  jetstream_data:

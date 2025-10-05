@@ -1,0 +1,70 @@
+services:
+  redis:
+    image: redis:7-bookworm
+    restart: always
+
+  bsky:
+    image: ghcr.io/erikologic/atproto:bsky-latest
+    environment:
+      - BSKY_ADMIN_PASSWORDS=password123
+      - BSKY_BLOB_CACHE_LOC=/cache/
+      - BSKY_BSYNC_HTTP_VERSION=1.1
+      - BSKY_BSYNC_PORT=3002
+      - BSKY_BSYNC_URL=http://localhost:3002
+      - BSKY_DATAPLANE_HTTP_VERSION=1.1
+      - BSKY_DATAPLANE_PORT=3001
+      - BSKY_DATAPLANE_URLS=http://localhost:3001
+      - BSKY_DB_POSTGRES_SCHEMA=bsky
+      - BSKY_DB_POSTGRES_URL=postgres://bsky:bsky@postgres:5432/bsky
+      - BSKY_DB_POOL_SIZE=100
+      - BSKY_DID_PLC_URL=https://plc.${PARTITION}.${DOMAIN}
+      - BSKY_PUBLIC_URL=https://bsky.${PARTITION}.${DOMAIN}
+      - BSKY_REPO_PROVIDER=wss://relay.${PARTITION}.${DOMAIN}
+      - BSKY_SERVER_DID=did:web:bsky.${PARTITION}.${DOMAIN}
+      - BSKY_SERVICE_SIGNING_KEY=da7a7d92e8d8f8e6f2a5a1b8c4d3e2f1a9b7c5d4e3f2a8b6c9d7e5f3a1b4c6d8
+      - BSKY_INDEXED_AT_EPOCH=${BSKY_INDEXED_AT_EPOCH:-2022-11-17T00:35:16.391+00:00}
+      - BSKY_VIDEO_PLAYLIST_URL_PATTERN=https://video.bsky.app/watch/%s/%s/playlist.m3u8
+      - BSKY_VIDEO_THUMBNAIL_URL_PATTERN=https://video.bsky.app/watch/%s/%s/thumbnail.jpg
+      - MOD_SERVICE_DID=did:web:ozone.${PARTITION}.${DOMAIN}
+      - CLUSTER_WORKER_COUNT=3
+      - DEBUG_MODE=1
+      - LOG_DESTINATION=1
+      - LOG_ENABLED=true
+      - LOG_LEVEL=trace
+      - NODE_ENV=${NODE_ENV:-production}
+      - NODE_OPTIONS=--max-old-space-size=32768
+      - REDIS_HOST=redis
+      - PORT=2584
+      - DD_AGENT_HOST=otel
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_TRACE_ENABLED=true
+      - DD_LOGS_INJECTION=true
+      - DD_SERVICE=bsky
+      - DD_ENV=dev
+    depends_on:
+      traefik-https-check:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      plc:
+        condition: service_healthy
+      relay:
+        condition: service_healthy
+      ozone:
+        condition: service_started
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.bsky.rule=Host(`bsky.${PARTITION}.${DOMAIN}`)"
+      - "traefik.http.routers.bsky.entrypoints=websecure"
+      - "traefik.http.routers.bsky.tls.certresolver=letsencrypt"
+      - "traefik.http.services.bsky.loadbalancer.server.port=2584"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --output-document=/dev/null http://localhost:2584",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s

@@ -1,0 +1,113 @@
+services:
+  tailscale-traefik:
+    image: tailscale/tailscale
+    environment:
+      - TS_AUTHKEY=${TAILSCALE_CLIENT_SECRET}
+      - TS_EXTRA_ARGS=--advertise-tags=tag:${TS_TAG}
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_USERSPACE=false
+      - TS_HOSTNAME=traefik-${PARTITION}
+    volumes:
+      - tailscale-traefik-state:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+      - tailscale-socket:/tmp
+    cap_add:
+      - net_admin
+      - sys_module
+    restart: unless-stopped
+
+  update-dns:
+    image: tailscale/tailscale
+    restart: "no"
+    network_mode: service:tailscale-traefik
+    environment:
+      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
+      - DOMAIN=${DOMAIN}
+      - PARTITION=${PARTITION}
+      - TS_STATE_DIR=/var/lib/tailscale
+    volumes:
+      - ./update-dns.sh:/update-dns.sh:ro
+      - tailscale-traefik-state:/var/lib/tailscale:ro
+      - tailscale-socket:/tmp:ro
+    depends_on:
+      tailscale-traefik:
+        condition: service_started
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["apk add --no-cache curl jq && /update-dns.sh"]
+
+  traefik:
+    image: traefik
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - CF_API_EMAIL=${CF_API_EMAIL}
+      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
+    depends_on:
+      tailscale-traefik:
+        condition: service_started
+      update-dns:
+        condition: service_completed_successfully
+    network_mode: service:tailscale-traefik
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./certs:/certs
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedByDefault=false
+      - --api.dashboard=true
+      - --ping=true
+      - --certificatesresolvers.letsencrypt.acme.dnschallenge=true
+      - --certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare
+      - --certificatesresolvers.letsencrypt.acme.dnsChallenge.resolvers=1.1.1.1:53,1.0.0.1:53
+      - --certificatesresolvers.letsencrypt.acme.email=${CF_API_EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.storage=/certs/acme.json
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.http.tls=true
+      - --entrypoints.websecure.http.tls.certResolver=letsencrypt
+      - --entrypoints.websecure.http.tls.domains[0].main=${PARTITION}.${DOMAIN}
+      - --entrypoints.websecure.http.tls.domains[0].sans=*.${PARTITION}.${DOMAIN}
+      - --log.level=DEBUG
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.${PARTITION}.${DOMAIN}`)"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.services.traefik.loadbalancer.server.port=8080"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://localhost:8080/ping || exit 1",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  traefik-https-check:
+    image: curlimages/curl:latest
+    restart: "no"
+    depends_on:
+      traefik:
+        condition: service_healthy
+    network_mode: service:tailscale-traefik
+    command: sleep infinity
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsSL --max-time 10 https://traefik.${PARTITION}.${DOMAIN}",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  tailscale-traefik-state:
+  tailscale-socket:

@@ -10,11 +10,12 @@ This project provides a complete, production-like AT Protocol network running lo
 
 Building ATProto applications requires a complete network stack. This project solves common pain points:
 
-✅ **Zero Manual Configuration** - All services auto-configure and discover each other
-✅ **Production-Like Environment** - Real HTTPS certificates via Let's Encrypt + Tailscale
-✅ **Comprehensive Test Suite** - API tests (Jest) + Browser tests (Playwright)
-✅ **E2E Test Reference** - Canonical examples of testing ATProto applications
-✅ **CI/CD Ready** - GitHub Actions workflows with artifact publishing
+- ✅ **Zero Manual Configuration** - `docker compose up` brings up the whole stack, `docker compose down -v` to clean up any test artifacts
+- ✅ **Production-Like Environment** - Real HTTPS certificates via Let's Encrypt (using Cloudflare DNS)
+- ✅ **Private separate network** - Uses Tailscale to set up a private network, to be shared with distributed test clients.
+- ✅ **Comprehensive Test Suite Boilercode** - API tests (Jest) + Browser tests (Playwright)
+- ✅ **E2E Test Reference** - Canonical examples of testing ATProto applications
+- ✅ **CI/CD Ready** - GitHub Actions workflows with artifact publishing
 
 ## Components
 
@@ -26,9 +27,6 @@ Building ATProto applications requires a complete network stack. This project so
 - **Jetstream** - Filtered event stream consumer
 - **AppView (Bsky)** - Social graph and feed aggregation
 - **Ozone** - Moderation and labeling service
-
-### Application Layer
-
 - **Feed Generator** - Custom algorithmic feed with auto-DID injection
 - **Social App** - Official Bluesky web client
 
@@ -39,6 +37,7 @@ Building ATProto applications requires a complete network stack. This project so
 - **Traefik** - Reverse proxy with automatic HTTPS (Let's Encrypt)
 - **PostgreSQL** - Shared database for services
 - **Redis** - Caching and session storage
+- **OTel collector** - Dump OTel telemetries on the terminal - can be configured to ship to a 3rd party
 
 ### Testing
 
@@ -51,9 +50,9 @@ Building ATProto applications requires a complete network stack. This project so
 ### Prerequisites
 
 - Docker and Docker Compose
-- Cloudflare domain with DNS API access (for SSL certificates via Let's Encrypt)
-- Tailscale account (for Tailscale network integration)
-- Node.js 22+ (for local test execution)
+- Cloudflare domain with DNS API access for SSL certificates via Let's Encrypt
+- Tailscale account for Tailscale network integration
+- Optional: Node.js 22+ for local test execution (tests can be run from the containers)
 
 ### 1. Configure Environment
 
@@ -66,7 +65,7 @@ Edit `.env` and configure:
 - `PARTITION` - Environment logical partition (e.g., `local`, `staging`)
 - `CF_API_EMAIL` - Cloudflare account email
 - `CF_DNS_API_TOKEN` - Cloudflare DNS API token (for Let's Encrypt DNS challenge)
-- `TAILSCALE_CLIENT_SECRET` / `TS_TAG` - Tailscale OAuth client secret and tag (optional)
+- `TAILSCALE_CLIENT_SECRET` / `TS_TAG` - Tailscale OAuth client secret and tag
 
 ### 2. Start Services
 
@@ -89,6 +88,7 @@ Access services at:
 - Relay: `https://relay.{PARTITION}.{DOMAIN}`
 - Jetstream: `https://jetstream.{PARTITION}.{DOMAIN}`
 - Feed Generator: `https://feedgen.{PARTITION}.{DOMAIN}`
+- Ozone: `https://ozone.{PARTITION}.{DOMAIN}`
 
 ## Running Tests
 
@@ -167,18 +167,12 @@ The workflow automatically runs on every push to `main`:
 6. Uploads Playwright artifacts
 7. Updates SSL certificate cache
 
-**View Results:**
-- Go to Actions tab in GitHub
-- Click on latest workflow run
-- See test results in job logs
-- Download Playwright artifacts from workflow summary
-
 **Playwright Reports on GitHub Pages**
 
 The `deploy_pages.yml` workflow automatically:
 - Collects all test run artifacts
 - Generates browsable index
-- Deploys to GitHub Pages
+- Deploys to GitHub Pages e.g. https://erikologic.github.io/u-at-proto/artifacts/
 
 **Setup:**
 1. Repository Settings → Pages → Source: "GitHub Actions"
@@ -189,20 +183,6 @@ Each test run contains:
 - Videos of test execution
 - Screenshots
 - Playwright traces
-
-## Architecture Highlights
-
-### Dynamic Feed Generator DID
-
-The feed generator automatically:
-1. Creates a user account on PDS
-2. Publishes the feed generator
-3. Writes the publisher DID to a shared volume
-4. Social app reads the DID on startup
-5. Feed becomes immediately available in the UI
-
-No manual DID configuration needed - tear down and rebuild anytime.
-
 
 ## GitHub Secrets Required
 
@@ -245,6 +225,7 @@ curl "https://bsky.{PARTITION}.{DOMAIN}/xrpc/app.bsky.feed.getFeed?feed=at://did
 
 - [Bluesky](https://github.com/bluesky-social) for ATProto reference implementations
 - [SmokeSignal](https://tangled.org/@smokesignal.events/localdev) for Tailscale + TLS inspiration
+- [ZeppelinSocial](https://github.com/zeppelin-social/bluesky-appview) for inspiration on how to get the BSky AppView running
 
 ## License
 

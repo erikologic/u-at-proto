@@ -1,0 +1,46 @@
+services:
+  ozone:
+    image: ghcr.io/bluesky-social/ozone:latest
+    environment:
+      - OZONE_DB_POSTGRES_URL=postgres://ozone:ozone@postgres:5432/ozone
+      - OZONE_DB_MIGRATE=1
+      - OZONE_SERVER_DID=did:web:ozone.${PARTITION}.${DOMAIN}
+      - OZONE_PUBLIC_URL=https://ozone.${PARTITION}.${DOMAIN}
+      - OZONE_DID_PLC_URL=https://plc.${PARTITION}.${DOMAIN}
+      - OZONE_APPVIEW_URL=https://bsky.${PARTITION}.${DOMAIN}
+      - OZONE_APPVIEW_DID=did:web:bsky.${PARTITION}.${DOMAIN}
+      - OZONE_ADMIN_PASSWORD=admin123
+      - OZONE_ADMIN_DIDS=did:web:ozone.${PARTITION}.${DOMAIN}
+      - OZONE_SIGNING_KEY_HEX=da7a7d92e8d8f8e6f2a5a1b8c4d3e2f1a9b7c5d4e3f2a8b6c9d7e5f3a1b4c6d8
+      - NODE_ENV=production
+      - LOG_ENABLED=true
+      - LOG_LEVEL=info
+      - PORT=3000
+    volumes:
+      - ozone_data:/data
+    depends_on:
+      traefik-https-check:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      plc:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ozone.rule=Host(`ozone.${PARTITION}.${DOMAIN}`)"
+      - "traefik.http.routers.ozone.entrypoints=websecure"
+      - "traefik.http.routers.ozone.tls.certresolver=letsencrypt"
+      - "traefik.http.services.ozone.loadbalancer.server.port=3000"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --output-document=/dev/null http://localhost:3000",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  ozone_data:
