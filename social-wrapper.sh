@@ -18,4 +18,4 @@ else
 fi
 
 echo "Starting social-app with FEED_OWNER_DID=${FEED_OWNER_DID}"
-exec /entrypoint.sh
+exec /usr/bin/bskyweb serve

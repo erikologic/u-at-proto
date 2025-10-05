@@ -11,7 +11,8 @@ function uniqueId() {
 }
 
 async function signUp(page: Page, name: string, pdsUrl: string) {
-  await page.getByRole("button", { name: "Create account" }).click();
+  await page.getByRole("button", { name: "Close welcome modal" }).click();
+  await page.getByRole("button", { name: "Create account" }).first().click();
 
   await page.getByRole("button", { name: "Bluesky Social" }).click();
   await page.getByRole("radio", { name: "Custom" }).click();
@@ -126,7 +127,9 @@ test.describe("Alice and Bob interaction", () => {
 
     await likePost(aliceBrowser, bobReplyText);
     await replyToPost(aliceBrowser, bobReplyText, `Thanks ${bobName}!`);
-    await aliceBrowser.getByRole("link", { name: bobReplyText, exact: false }).click();
+    await aliceBrowser
+      .getByRole("link", { name: bobReplyText, exact: false })
+      .click();
     await expect(aliceBrowser.getByText(`Thanks ${bobName}!`)).toBeVisible();
 
     await bobBrowser.reload();

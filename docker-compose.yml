@@ -147,10 +147,7 @@ services:
   # =============================================================================
 
   plc:
-    # image: ghcr.io/erikologic/did-method-plc:latest
-    build:
-      context: ../did-method-plc
-      dockerfile: packages/server/Dockerfile
+    image: ghcr.io/erikologic/did-method-plc:latest
     environment:
       DB_CREDS_JSON: '{"username":"plc","password":"plc","host":"postgres","port":"5432","database":"plc"}'
       DB_MIGRATE_CREDS_JSON: '{"username":"plc","password":"plc","host":"postgres","port":"5432","database":"plc"}'
@@ -235,10 +232,7 @@ services:
   # =============================================================================
 
   relay:
-    # image: ghcr.io/erikologic/indigo:relay-latest
-    build:
-      context: ../indigo
-      dockerfile: cmd/relay/Dockerfile
+    image: ghcr.io/erikologic/indigo:relay-latest
     environment:
       DATABASE_URL: postgres://relay:relay@postgres:5432/relay
       RELAY_PLC_HOST: https://plc.${PARTITION}.${DOMAIN}
@@ -281,10 +275,7 @@ services:
   # =============================================================================
 
   jetstream:
-    # image: ghcr.io/erikologic/jetstream:latest
-    build:
-      context: ../jetstream
-      dockerfile: Dockerfile
+    image: ghcr.io/erikologic/jetstream:latest
     restart: always
     environment:
       - JETSTREAM_DATA_DIR=/data
@@ -370,10 +361,7 @@ services:
     restart: always
 
   bsky:
-    # image: ghcr.io/erikologic/atproto:bsky-latest
-    build:
-      context: ../atproto
-      dockerfile: services/bsky/Dockerfile
+    image: ghcr.io/erikologic/atproto:bsky-latest
     environment:
       - BSKY_ADMIN_PASSWORDS=password123
       - BSKY_BLOB_CACHE_LOC=/cache/
@@ -442,10 +430,7 @@ services:
   # FEED GENERATOR SERVICE
   # =============================================================================
   feedgen:
-    # image: ghcr.io/erikologic/feed-generator:latest
-    build:
-      context: ../feed-generator
-      dockerfile: Dockerfile
+    image: ghcr.io/erikologic/feed-generator:latest
     volumes:
       - feedgen_data:/data
     environment:
