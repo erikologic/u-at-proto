@@ -2,7 +2,7 @@
 
 # u-at-proto
 
-**A canonical ATProto implementation for local development and end-to-end testing.**
+**One-click, production-like ATProto network for local development and E2E testing.**
 
 This project provides a complete, production-like AT Protocol network running locally with Docker Compose. It's designed to be the reference implementation for developers building on ATProto who need a reliable local environment with comprehensive E2E test coverage.
 
