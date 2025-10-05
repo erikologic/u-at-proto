@@ -12,7 +12,7 @@ if (!PARTITION) {
 }
 
 export default defineConfig({
-  testDir: "./e2e/browser",
+  testDir: "./tests/browser",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
