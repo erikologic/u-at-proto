@@ -48,7 +48,7 @@ services:
         condition: service_healthy
       plc:
         condition: service_healthy
-      relay:
+      relay-post-setup:
         condition: service_healthy
       ozone:
         condition: service_started

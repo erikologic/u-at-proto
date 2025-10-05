@@ -15,7 +15,7 @@ services:
         condition: service_healthy
       bsky:
         condition: service_healthy
-      prepare:
+      feedgen-post-setup:
         condition: service_healthy
     labels:
       - "traefik.enable=true"

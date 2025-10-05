@@ -13,7 +13,7 @@ services:
       - ../package.json:/app/package.json
       - ../tsconfig.json:/app/tsconfig.json
     depends_on:
-      prepare:
+      feedgen-post-setup:
         condition: service_healthy
       jetstream:
         condition: service_healthy
