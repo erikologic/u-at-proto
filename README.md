@@ -55,7 +55,7 @@ Post-setup services run initialization scripts after their base service is healt
 
 - **Tailscale** (`traefik/`) - Secure mesh VPN for remote access
 - **Cloudflare** (`traefik/`) - DNS management / SSL certificate provisioning
-- **Traefik** (`traefik/`) - Reverse proxy with automatic HTTPS (Let's Encrypt)
+- **Traefik** (`traefik/`) - Reverse proxy with automatic HTTPS (Let's Encrypt with auto-renewal)
 - **PostgreSQL** (`database/`) - Shared database for services
 - **Redis** (`appview/`) - Caching and session storage
 - **OTel collector** (`observability/`) - Telemetry collection (optional, use `--profile otel`)
