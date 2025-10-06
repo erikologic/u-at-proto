@@ -1,6 +1,6 @@
 services:
   plc:
-    image: ghcr.io/erikologic/did-method-plc:latest
+    image: ghcr.io/eurosky-social/did-method-plc:latest
     environment:
       DB_CREDS_JSON: '{"username":"plc","password":"plc","host":"postgres","port":"5432","database":"plc"}'
       DB_MIGRATE_CREDS_JSON: '{"username":"plc","password":"plc","host":"postgres","port":"5432","database":"plc"}'

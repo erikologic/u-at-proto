@@ -1,6 +1,6 @@
 services:
   social:
-    image: ghcr.io/erikologic/social-app:bskyweb-latest
+    image: ghcr.io/eurosky-social/social-app:bskyweb-latest
     entrypoint: ["/usr/local/bin/social-wrapper.sh"]
     environment:
       - ATP_APPVIEW_HOST=https://bsky.${PARTITION}.${DOMAIN}

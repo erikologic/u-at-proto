@@ -1,6 +1,6 @@
 services:
   relay:
-    image: ghcr.io/erikologic/indigo:relay-latest
+    image: ghcr.io/eurosky-social/indigo:relay-latest
     environment:
       DATABASE_URL: postgres://relay:relay@postgres:5432/relay
       RELAY_PLC_HOST: https://plc.${PARTITION}.${DOMAIN}
@@ -58,7 +58,7 @@ services:
       start_period: 5s
 
   jetstream:
-    image: ghcr.io/erikologic/jetstream:latest
+    image: ghcr.io/eurosky-social/jetstream:latest
     restart: always
     environment:
       - JETSTREAM_DATA_DIR=/data

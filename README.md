@@ -1,4 +1,4 @@
-[![E2E Tests](https://github.com/erikologic/u-at-proto/actions/workflows/e2e-test.yml/badge.svg)](https://github.com/erikologic/u-at-proto/actions/workflows/e2e-test.yml)
+[![E2E Tests](https://github.com/eurosky-social/u-at-proto/actions/workflows/e2e-test.yml/badge.svg)](https://github.com/eurosky-social/u-at-proto/actions/workflows/e2e-test.yml)
 
 # u-at-proto
 
@@ -204,7 +204,7 @@ The `deploy_pages.yml` workflow automatically:
 
 - Collects all test run artifacts
 - Generates browsable index
-- Deploys to GitHub Pages e.g. <https://erikologic.github.io/u-at-proto/artifacts/>
+- Deploys to GitHub Pages e.g. <https://eurosky-social.github.io/u-at-proto/artifacts/>
 
 **Setup:**
 
@@ -284,7 +284,7 @@ You can include this project as a submodule in your own repository to use the AT
 **1. Add as submodule:**
 
 ```bash
-git submodule add https://github.com/erikologic/u-at-proto.git u-at-proto
+git submodule add https://github.com/eurosky-social/u-at-proto.git u-at-proto
 git submodule update --init --recursive
 ```
 

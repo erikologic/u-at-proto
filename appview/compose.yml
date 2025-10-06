@@ -4,7 +4,7 @@ services:
     restart: always
 
   bsky:
-    image: ghcr.io/erikologic/atproto:bsky-latest
+    image: ghcr.io/eurosky-social/atproto:bsky-latest
     environment:
       - BSKY_ADMIN_PASSWORDS=password123
       - BSKY_BLOB_CACHE_LOC=/cache/
