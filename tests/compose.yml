@@ -8,7 +8,7 @@ services:
       - PARTITION=${PARTITION}
     volumes:
       - ./api:/app/tests/api
-      - ./jest.config.js:/app/jest.config.js
+      - ../jest.config.js:/app/jest.config.js
       - ../package-lock.json:/app/package-lock.json
       - ../package.json:/app/package.json
       - ../tsconfig.json:/app/tsconfig.json
@@ -31,8 +31,8 @@ services:
       - PARTITION=${PARTITION}
       - CI=true
     volumes:
-      - ./ui:/app/tests/ui
-      - ./playwright.config.ts:/app/playwright.config.ts
+      - ./browser:/app/tests/browser
+      - ../playwright.config.ts:/app/playwright.config.ts
       - ../package-lock.json:/app/package-lock.json
       - ../package.json:/app/package.json
       - ../tsconfig.json:/app/tsconfig.json
