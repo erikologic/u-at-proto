@@ -1,8 +1,6 @@
 services:
   social:
-    build:
-      context: ../social-app
-      dockerfile: Dockerfile
+    image: ghcr.io/erikologic/social-app:bskyweb-latest
     entrypoint: ["/usr/local/bin/social-wrapper.sh"]
     environment:
       - ATP_APPVIEW_HOST=https://bsky.${PARTITION}.${DOMAIN}
