@@ -22,7 +22,7 @@ class FirehoseEventCollector {
   private readonly firehose: Firehose;
 
   constructor(endpoint: string) {
-    this.firehose = new Firehose({ relay: `https://${endpoint}` });
+    this.firehose = new Firehose({ relay: `https://${endpoint}`, ws: WebSocket });
     this.firehose.on("commit", (commit) => {
       this.events.push(commit);
     });
