@@ -1,6 +1,6 @@
 services:
   feedgen:
-    image: ghcr.io/eurosky-social/feed-generator:latest
+    image: ghcr.io/eurosky-social/feed-generator:feedgen-latest
     volumes:
       - feedgen_data:/data
     environment:
