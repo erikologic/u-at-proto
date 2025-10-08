@@ -24,7 +24,9 @@ jobs:
       - name: Tailscale
         uses: tailscale/github-action@v3
         with:
-          authkey: ${{ secrets.TS_AUTHKEY }}
+          oauth-client-id: ${{ secrets.TAILSCALE_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TAILSCALE_CLIENT_SECRET }}
+          tags: tag:${{ env.TS_TAG }}
 
       - name: Restore certificates cache
         id: cache-certs
@@ -63,14 +65,14 @@ jobs:
 
       - name: Run Jest E2E tests
         env:
-          TS_AUTHKEY: ${{secrets.TS_AUTHKEY}}
+          TAILSCALE_CLIENT_SECRET: ${{secrets.TAILSCALE_CLIENT_SECRET}}
           CF_API_EMAIL: ${{secrets.CF_API_EMAIL}}
           CF_DNS_API_TOKEN: ${{secrets.CF_DNS_API_TOKEN}}
         run: docker compose --profile test run --rm --no-deps e2e-jest
 
       - name: Run Playwright E2E tests
         env:
-          TS_AUTHKEY: ${{secrets.TS_AUTHKEY}}
+          TAILSCALE_CLIENT_SECRET: ${{secrets.TAILSCALE_CLIENT_SECRET}}
           CF_API_EMAIL: ${{secrets.CF_API_EMAIL}}
           CF_DNS_API_TOKEN: ${{secrets.CF_DNS_API_TOKEN}}
         run: docker compose --profile test run --rm --no-deps  e2e-playwright
@@ -86,7 +88,7 @@ jobs:
       - name: Show logs
         if: always()
         env:
-          TS_AUTHKEY: ${{secrets.TS_AUTHKEY}}
+          TAILSCALE_CLIENT_SECRET: ${{secrets.TAILSCALE_CLIENT_SECRET}}
           CF_API_EMAIL: ${{secrets.CF_API_EMAIL}}
           CF_DNS_API_TOKEN: ${{secrets.CF_DNS_API_TOKEN}}
         run: docker compose logs -n all
