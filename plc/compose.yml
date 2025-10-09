@@ -29,3 +29,13 @@ services:
       timeout: 3s
       retries: 3
       start_period: 10s
+
+  plc-https-check:
+    extends:
+      file: ../templates/compose.yml
+      service: https-check
+    depends_on:
+      plc:
+        condition: service_healthy
+    environment:
+      HEALTHCHECK_URL: plc.${PARTITION}.${DOMAIN}

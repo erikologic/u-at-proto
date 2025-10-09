@@ -1,0 +1,15 @@
+# This service will force Traefik to fetch a TLS certificate for the given domain,
+# ensuring that dependent services can start only after Traefik is ready and has a valid cert
+
+services:
+  https-check:
+    image: curlimages/curl:latest
+    restart: "no"
+    network_mode: service:tailscale-traefik
+    command: sleep infinity
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsSL --max-time 10 https://$$HEALTHCHECK_URL$${HEALTHCHECK_PATH:-/}"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 10s

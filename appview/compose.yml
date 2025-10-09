@@ -46,12 +46,12 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-      plc:
+      plc-https-check:
         condition: service_healthy
       relay-post-setup:
         condition: service_healthy
-      ozone:
-        condition: service_started
+      ozone-https-check:
+        condition: service_healthy
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.bsky.rule=Host(`bsky.${PARTITION}.${DOMAIN}`)"
@@ -68,3 +68,13 @@ services:
       timeout: 3s
       retries: 3
       start_period: 10s
+
+  bsky-https-check:
+    extends:
+      file: ../templates/compose.yml
+      service: https-check
+    depends_on:
+      bsky:
+        condition: service_healthy
+    environment:
+      HEALTHCHECK_URL: bsky.${PARTITION}.${DOMAIN}

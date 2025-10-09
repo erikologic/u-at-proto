@@ -22,9 +22,7 @@ services:
     volumes:
       - pds_data:/app/data
     depends_on:
-      traefik-https-check:
-        condition: service_healthy
-      plc:
+      plc-https-check:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
@@ -44,6 +42,16 @@ services:
       timeout: 3s
       retries: 3
       start_period: 10s
+
+  pds-https-check:
+    extends:
+      file: ../templates/compose.yml
+      service: https-check
+    depends_on:
+      pds:
+        condition: service_healthy
+    environment:
+      HEALTHCHECK_URL: pds.${PARTITION}.${DOMAIN}
 
 volumes:
   pds_data:

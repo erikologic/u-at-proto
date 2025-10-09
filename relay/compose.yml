@@ -19,7 +19,7 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-      pds:
+      pds-https-check:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
@@ -37,6 +37,16 @@ services:
       timeout: 3s
       retries: 3
       start_period: 10s
+
+  relay-https-check:
+    extends:
+      file: ../templates/compose.yml
+      service: https-check
+    depends_on:
+      relay:
+        condition: service_healthy
+    environment:
+      HEALTHCHECK_URL: relay.${PARTITION}.${DOMAIN}
 
   relay-post-setup:
     image: alpine:latest
@@ -86,6 +96,16 @@ services:
       timeout: 3s
       retries: 3
       start_period: 10s
+
+  jetstream-https-check:
+    extends:
+      file: ../templates/compose.yml
+      service: https-check
+    depends_on:
+      jetstream:
+        condition: service_healthy
+    environment:
+      HEALTHCHECK_URL: jetstream.${PARTITION}.${DOMAIN}
 
 volumes:
   relay_data:

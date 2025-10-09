@@ -90,23 +90,14 @@ services:
       start_period: 10s
 
   traefik-https-check:
-    image: curlimages/curl:latest
-    restart: "no"
+    extends:
+      file: ../templates/compose.yml
+      service: https-check
     depends_on:
       traefik:
         condition: service_healthy
-    network_mode: service:tailscale-traefik
-    command: sleep infinity
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "curl -fsSL --max-time 10 https://traefik.${PARTITION}.${DOMAIN}",
-        ]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 10s
+    environment:
+      HEALTHCHECK_URL: traefik.${PARTITION}.${DOMAIN}/dashboard
 
 volumes:
   tailscale-traefik-state:

@@ -11,7 +11,7 @@ services:
     depends_on:
       traefik-https-check:
         condition: service_healthy
-      bsky:
+      bsky-https-check:
         condition: service_healthy
       feedgen-post-setup:
         condition: service_healthy
@@ -27,6 +27,17 @@ services:
       timeout: 3s
       retries: 3
       start_period: 10s
+
+
+  social-https-check:
+    extends:
+      file: ../templates/compose.yml
+      service: https-check
+    depends_on:
+      social:
+        condition: service_healthy
+    environment:
+      HEALTHCHECK_URL: social.${PARTITION}.${DOMAIN}
 
 volumes:
   feedgen_publisher_did:

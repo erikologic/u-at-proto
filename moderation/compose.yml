@@ -23,7 +23,7 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-      plc:
+      plc-https-check:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
@@ -41,6 +41,17 @@ services:
       timeout: 3s
       retries: 3
       start_period: 10s
+
+
+  ozone-https-check:
+    extends:
+      file: ../templates/compose.yml
+      service: https-check
+    depends_on:
+      ozone:
+        condition: service_healthy
+    environment:
+      HEALTHCHECK_URL: ozone.${PARTITION}.${DOMAIN}
 
 volumes:
   ozone_data:
