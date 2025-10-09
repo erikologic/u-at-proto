@@ -90,6 +90,43 @@ update_dns_record() {
   echo "DNS record updated successfully"
 }
 
+wait_for_dns_propagation() {
+  local domain="$1"
+  local expected_ip="$2"
+  local max_attempts=30
+  local attempt=1
+
+  echo "Waiting for DNS propagation of ${domain}..."
+
+  while [ $attempt -le $max_attempts ]; do
+    # Query Cloudflare DNS directly to verify the record was updated
+    # (local DNS caches may be stale, but will eventually catch up)
+    local resolved_ip=$(nslookup "$domain" 1.1.1.1 2>/dev/null | grep -A1 "Name:" | grep "Address:" | awk '{print $2}' | head -1 || true)
+
+    if [ "$resolved_ip" = "$expected_ip" ]; then
+      echo "✅ DNS propagated successfully: ${domain} -> ${expected_ip}"
+      return 0
+    fi
+
+    if [ -z "$resolved_ip" ]; then
+      echo "Attempt ${attempt}/${max_attempts}: ${domain} not found (NXDOMAIN), waiting for DNS record creation..."
+    else
+      echo "Attempt ${attempt}/${max_attempts}: ${domain} resolves to '${resolved_ip}', waiting for '${expected_ip}'..."
+    fi
+    sleep 2
+    attempt=$((attempt + 1))
+  done
+
+  if [ -z "$resolved_ip" ]; then
+    echo "❌ Error: DNS record for ${domain} not found after ${max_attempts} attempts"
+    echo "This indicates the DNS record was not created in Cloudflare or severe propagation delay"
+  else
+    echo "❌ Error: DNS did not propagate after ${max_attempts} attempts (${domain} still resolves to '${resolved_ip}' instead of '${expected_ip}')"
+    echo "This likely indicates a DNS caching issue or Cloudflare propagation delay"
+  fi
+  return 1
+}
+
 main() {
   validate_env
   wait_for_tailscale
@@ -121,6 +158,10 @@ main() {
   else
     update_dns_record "$zone_id" "$pds_record_id" "$pds_wildcard" "$ip"
   fi
+
+  wait_for_dns_propagation "traefik.${full_domain}" "$ip"
+
+  echo "✅ DNS update complete"
 }
 
 main
