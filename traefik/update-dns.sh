@@ -90,26 +90,31 @@ update_dns_record() {
   echo "DNS record updated successfully"
 }
 
-wait_for_dns_propagation() {
+check_dns_resolver() {
   local domain="$1"
   local expected_ip="$2"
+  local dns_server="$3"
+  local resolver_name="$4"
   local max_attempts=30
   local attempt=1
 
-  echo "Waiting for DNS propagation of ${domain}..."
+  echo "Checking ${resolver_name} for ${domain}..."
 
   while [ $attempt -le $max_attempts ]; do
-    # Query Cloudflare DNS directly to verify the record was updated
-    # (local DNS caches may be stale, but will eventually catch up)
-    local resolved_ip=$(nslookup "$domain" 1.1.1.1 2>/dev/null | grep -A1 "Name:" | grep "Address:" | awk '{print $2}' | head -1 || true)
+    local resolved_ip
+    if [ -n "$dns_server" ]; then
+      resolved_ip=$(nslookup "$domain" "$dns_server" 2>/dev/null | grep -A1 "Name:" | grep "Address:" | awk '{print $2}' | head -1 || true)
+    else
+      resolved_ip=$(nslookup "$domain" 2>/dev/null | grep -A1 "Name:" | grep "Address:" | awk '{print $2}' | head -1 || true)
+    fi
 
     if [ "$resolved_ip" = "$expected_ip" ]; then
-      echo "✅ DNS propagated successfully: ${domain} -> ${expected_ip}"
+      echo "✅ ${resolver_name} resolved successfully: ${domain} -> ${expected_ip}"
       return 0
     fi
 
     if [ -z "$resolved_ip" ]; then
-      echo "Attempt ${attempt}/${max_attempts}: ${domain} not found (NXDOMAIN), waiting for DNS record creation..."
+      echo "Attempt ${attempt}/${max_attempts}: ${domain} not found (NXDOMAIN)..."
     else
       echo "Attempt ${attempt}/${max_attempts}: ${domain} resolves to '${resolved_ip}', waiting for '${expected_ip}'..."
     fi
@@ -118,13 +123,36 @@ wait_for_dns_propagation() {
   done
 
   if [ -z "$resolved_ip" ]; then
-    echo "❌ Error: DNS record for ${domain} not found after ${max_attempts} attempts"
-    echo "This indicates the DNS record was not created in Cloudflare or severe propagation delay"
+    echo "❌ Error: ${resolver_name} cannot find ${domain} after ${max_attempts} attempts (NXDOMAIN)"
   else
-    echo "❌ Error: DNS did not propagate after ${max_attempts} attempts (${domain} still resolves to '${resolved_ip}' instead of '${expected_ip}')"
-    echo "This likely indicates a DNS caching issue or Cloudflare propagation delay"
+    echo "❌ Error: ${resolver_name} still resolves ${domain} to '${resolved_ip}' instead of '${expected_ip}'"
   fi
   return 1
+}
+
+wait_for_dns_propagation() {
+  local domain="$1"
+  local expected_ip="$2"
+
+  echo "Waiting for DNS propagation of ${domain}..."
+
+  # First, verify the record exists in Cloudflare DNS
+  if ! check_dns_resolver "$domain" "$expected_ip" "1.1.1.1" "Cloudflare DNS (1.1.1.1)"; then
+    echo "❌ DNS record is not available on the DNS registrar (Cloudflare)"
+    echo "This indicates the DNS record was not created successfully or Cloudflare has not propagated it globally"
+    return 1
+  fi
+
+  # Then, verify the record is accessible via host DNS (used by Docker containers)
+  if ! check_dns_resolver "$domain" "$expected_ip" "" "Host DNS resolver"; then
+    echo "❌ DNS record has not propagated to the host DNS resolver"
+    echo "This indicates a local DNS caching issue (e.g., Tailscale MagicDNS cache)"
+    echo "The record exists in Cloudflare but may take additional time to reach local caches"
+    return 1
+  fi
+
+  echo "✅ DNS propagation complete - record accessible both globally and locally"
+  return 0
 }
 
 main() {
