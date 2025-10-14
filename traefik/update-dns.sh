@@ -95,7 +95,7 @@ check_dns_resolver() {
   local expected_ip="$2"
   local dns_server="$3"
   local resolver_name="$4"
-  local max_attempts=30
+  local max_attempts=60
   local attempt=1
 
   echo "Checking ${resolver_name} for ${domain}..."
