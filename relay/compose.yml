@@ -1,6 +1,7 @@
 services:
   relay:
     image: ghcr.io/eurosky-social/indigo:relay-latest
+    command: ["/relay", "serve", "--allow-private-networks"]
     environment:
       DATABASE_URL: postgres://relay:relay@postgres:5432/relay
       RELAY_PLC_HOST: https://plc.${PARTITION}.${DOMAIN}
@@ -11,7 +12,8 @@ services:
       RELAY_API_LISTEN: 0.0.0.0:3000
       RELAY_ALLOW_PRIVATE_NETWORKS: "true"
       ENVIRONMENT: dev
-      LOG_LEVEL: trace
+      LOG_LEVEL: debug
+      GOLOG_LOG_LEVEL: debug
     volumes:
       - relay_data:/data/relay
     depends_on:

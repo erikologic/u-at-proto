@@ -1,0 +1,125 @@
+services:
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    labels:
+      - "traefik.enable=true"
+      # MinIO API
+      - "traefik.http.routers.minio-api.rule=Host(`minio.${PARTITION}.${DOMAIN}`)"
+      - "traefik.http.routers.minio-api.entrypoints=websecure"
+      - "traefik.http.routers.minio-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.minio-api.service=minio-api"
+      - "traefik.http.services.minio-api.loadbalancer.server.port=9000"
+      # MinIO Console
+      - "traefik.http.routers.minio-console.rule=Host(`minio-console.${PARTITION}.${DOMAIN}`)"
+      - "traefik.http.routers.minio-console.entrypoints=websecure"
+      - "traefik.http.routers.minio-console.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.minio-console.service=minio-console"
+      - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
+
+  pds:
+    # image: ghcr.io/eurosky-social/rsky:rsky-pds-latest
+    image: rsky-pds:local
+    environment:
+      # Database configuration
+      DATABASE_URL: postgresql://pds:pds@postgres:5432/pds
+
+      # Core PDS configuration
+      PDS_HOSTNAME: pds.${PARTITION}.${DOMAIN}
+      PDS_PORT: 2583
+      ROCKET_PORT: 2583
+      ROCKET_ADDRESS: 0.0.0.0
+      PDS_SERVICE_DID: did:web:pds.${PARTITION}.${DOMAIN}
+      PDS_DID_PLC_URL: https://plc.${PARTITION}.${DOMAIN}
+      PDS_RECOVERY_DID_KEY: did:key:zQ3shsd3JjGDd8auYXp76QWijpjiwbPUv4oVdcACmXBjYnRsa
+
+      # Cryptographic keys (dev/test keys - DO NOT use in production)
+      PDS_PLC_ROTATION_KEY_K256_PRIVATE_KEY_HEX: fb478b39dd2ddf84bef135dd60f90381903eefadbb9df4b18a2b9b174ae72582
+      PDS_REPO_SIGNING_KEY_K256_PRIVATE_KEY_HEX: 71cfcf4882a6cff494c3d0affadd3858eb3a5838e7b5e15170e696a590a4fa01
+      PDS_JWT_KEY_K256_PRIVATE_KEY_HEX: 9d5907143471e8f0e8df0f8b9512a8c5377878ee767f18fcf961055ecfc071cd
+
+      # Blob storage (MinIO S3-compatible storage)
+      AWS_ENDPOINT: http://minio:9000
+      AWS_ENDPOINT_BUCKET: http://minio:9000
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      AWS_REGION: us-east-1
+
+      # Subscription/Firehose configuration
+      PDS_MAX_SUBSCRIPTION_BUFFER: 500
+      PDS_REPO_BACKFILL_LIMIT_MS: 3600000
+
+      # Development settings
+      PDS_DEV_MODE: true
+      PDS_INVITE_REQUIRED: false
+
+      # Integration with other services
+      PDS_BSKY_APP_VIEW_URL: https://bsky.${PARTITION}.${DOMAIN}
+      PDS_BSKY_APP_VIEW_DID: did:web:bsky.${PARTITION}.${DOMAIN}
+      PDS_MOD_SERVICE_URL: https://ozone.${PARTITION}.${DOMAIN}
+      PDS_MOD_SERVICE_DID: did:web:ozone.${PARTITION}.${DOMAIN}
+
+      # Email configuration (required by RSky PDS)
+      # Note: RSky PDS uses Mailgun for email. For local dev, use placeholder values
+      # Emails won't actually send, but account creation won't crash
+      PDS_MAILGUN_API_KEY: "placeholder-key-for-dev"
+      PDS_MAILGUN_DOMAIN: "sandbox.mailgun.org"
+      PDS_EMAIL_FROM_NAME: "AT Proto PDS"
+      PDS_EMAIL_FROM_ADDRESS: "noreply@${PARTITION}.${DOMAIN}"
+
+      # Logging
+      RUST_LOG: debug
+      RUST_BACKTRACE: 1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      traefik-https-check:
+        condition: service_healthy
+      plc-https-check:
+        condition: service_healthy
+      maildev:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pds.rule=Host(`pds.${PARTITION}.${DOMAIN}`) || HostRegexp(`^.+\\.pds\\.${PARTITION}\\.${DOMAIN}$$`)"
+      - "traefik.http.routers.pds.entrypoints=websecure"
+      - "traefik.http.routers.pds.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.pds.tls.domains[0].main=pds.${PARTITION}.${DOMAIN}"
+      - "traefik.http.routers.pds.tls.domains[0].sans=*.pds.${PARTITION}.${DOMAIN}"
+      - "traefik.http.services.pds.loadbalancer.server.port=2583"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --output-document=/dev/null http://localhost:2583/xrpc/_health",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+
+  pds-https-check:
+    extends:
+      file: ../../u-at-proto/templates/compose.yml
+      service: https-check
+    depends_on:
+      pds:
+        condition: service_healthy
+    environment:
+      HEALTHCHECK_URL: pds.${PARTITION}.${DOMAIN}
+
+volumes:
+  minio_data:
