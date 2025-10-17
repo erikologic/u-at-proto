@@ -59,7 +59,6 @@ curl -s -X POST "https://${PDS_HOST}/xrpc/com.atproto.repo.putRecord" \
     \"collection\": \"app.bsky.feed.generator\",
     \"rkey\": \"${FEEDGEN_RECORD_NAME}\",
     \"record\": {
-      \"\$type\": \"app.bsky.feed.generator\",
       \"did\": \"${FEEDGEN_SERVICE_DID}\",
       \"displayName\": \"${FEEDGEN_DISPLAY_NAME}\",
       \"description\": \"${FEEDGEN_DESCRIPTION}\",

@@ -1,7 +1,6 @@
 import { AtpAgent } from "@atproto/api";
 import { Firehose } from "@skyware/firehose";
 import WebSocket from "ws";
-import { setTimeout as sleep } from "timers/promises";
 import "dotenv/config";
 
 const DOMAIN = process.env.DOMAIN;
@@ -23,11 +22,7 @@ class FirehoseEventCollector {
   private readonly firehose: Firehose;
 
   constructor(endpoint: string) {
-    this.firehose = new Firehose({
-      relay: `https://${endpoint}`,
-      ws: WebSocket,
-      cursor: "0"  // Start from the beginning of the event stream
-    });
+    this.firehose = new Firehose({ relay: `https://${endpoint}`, ws: WebSocket });
     this.firehose.on("commit", (commit) => {
       this.events.push(commit);
     });
@@ -161,18 +156,11 @@ describe("Local ATProto E2E Tests", () => {
   let userManager: UserManager;
 
   beforeAll(async () => {
-    // Wait a bit for relay to sync with PDS before creating collectors
-    await sleep(5000);
-
     pdsCollector = new FirehoseEventCollector(PDS_DOMAIN);
     relayCollector = new FirehoseEventCollector(RELAY_DOMAIN);
     jetstreamCollector = await JetstreamEventCollector.create(JETSTREAM_DOMAIN);
-
-    // Wait for firehose connections to establish
-    await sleep(2000);
-
     userManager = await UserManager.create(`https://${PDS_DOMAIN}`);
-  }, 40_000);
+  }, 30_000);
 
   afterAll(() => {
     pdsCollector?.stop();
@@ -184,18 +172,7 @@ describe("Local ATProto E2E Tests", () => {
     const postText = "Hello world!";
     await userManager.createPost(postText);
 
-    await sleep(5000);
-
-    console.log(`\nPDS events: ${pdsCollector.events.length}`);
-    console.log(`Relay events: ${relayCollector.events.length}`);
-    console.log(`Jetstream events: ${jetstreamCollector.events.length}`);
-
-    if (pdsCollector.events.length > 0) {
-      console.log(`Sample PDS event:`, JSON.stringify(pdsCollector.events[pdsCollector.events.length - 1], null, 2));
-    }
-    if (relayCollector.events.length > 0) {
-      console.log(`Sample relay event:`, JSON.stringify(relayCollector.events[relayCollector.events.length - 1], null, 2));
-    }
+    await new Promise((resolve) => setTimeout(resolve, 5000));
 
     expect(pdsCollector.events).toContainEqual(
       expectFirehoseCommitWith(postText)
@@ -272,10 +249,10 @@ xdescribe("Synthetic Data Generation", () => {
 
     for (const { user, message } of conversation) {
       await user.createPost(message);
-      await sleep(1000);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
-    await sleep(5000);
+    await new Promise((resolve) => setTimeout(resolve, 5000));
 
     const finalEventCount = {
       pds: pdsCollector.events.length,

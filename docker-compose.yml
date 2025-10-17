@@ -1,11 +1,9 @@
 include:
   - traefik/compose.yml
   - database/compose.yml
-  - maildev/compose.yml
   - observability/compose.yml
   - plc/compose.yml
-  # - pds/compose.yml
-  - pds/compose.rsky.yml
+  - pds/compose.yml
   - relay/compose.yml
   - moderation/compose.yml
   - appview/compose.yml
