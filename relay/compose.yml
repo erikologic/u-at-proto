@@ -2,7 +2,7 @@ services:
   relay:
     image: ghcr.io/eurosky-social/indigo:relay-latest
     environment:
-      DATABASE_URL: postgres://relay:relay@postgres:5432/relay
+      DATABASE_URL: postgres://relay:relay@postgres-${PARTITION}:5432/relay
       RELAY_PLC_HOST: https://plc.${PARTITION}.${DOMAIN}
       RELAY_ADMIN_PASSWORD: admin123
       RELAY_PERSIST_DIR: /data/relay/persist

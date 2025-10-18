@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:15-alpine
+    hostname: postgres-${PARTITION}
     environment:
       POSTGRES_PASSWORD: postgres
     volumes:

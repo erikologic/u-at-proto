@@ -2,7 +2,7 @@ services:
   ozone:
     image: ghcr.io/bluesky-social/ozone:latest
     environment:
-      - OZONE_DB_POSTGRES_URL=postgres://ozone:ozone@postgres:5432/ozone
+      - OZONE_DB_POSTGRES_URL=postgres://ozone:ozone@postgres-${PARTITION}:5432/ozone
       - OZONE_DB_MIGRATE=1
       - OZONE_SERVER_DID=did:web:ozone.${PARTITION}.${DOMAIN}
       - OZONE_PUBLIC_URL=https://ozone.${PARTITION}.${DOMAIN}
