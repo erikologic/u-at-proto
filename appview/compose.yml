@@ -23,6 +23,7 @@ services:
       - BSKY_SERVER_DID=did:web:bsky.${PARTITION}.${DOMAIN}
       - BSKY_SERVICE_SIGNING_KEY=da7a7d92e8d8f8e6f2a5a1b8c4d3e2f1a9b7c5d4e3f2a8b6c9d7e5f3a1b4c6d8
       - BSKY_INDEXED_AT_EPOCH=${BSKY_INDEXED_AT_EPOCH:-2022-11-17T00:35:16.391+00:00}
+      - ATP_DEFAULT_LABELER_DID=${OZONE_ADMIN_DID}
       - BSKY_VIDEO_PLAYLIST_URL_PATTERN=https://video.bsky.app/watch/%s/%s/playlist.m3u8
       - BSKY_VIDEO_THUMBNAIL_URL_PATTERN=https://video.bsky.app/watch/%s/%s/thumbnail.jpg
       - MOD_SERVICE_DID=did:web:ozone.${PARTITION}.${DOMAIN}

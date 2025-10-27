@@ -5,6 +5,7 @@ services:
     environment:
       - ATP_APPVIEW_HOST=https://bsky.${PARTITION}.${DOMAIN}
       - ATP_PUBLIC_APPVIEW_HOST=https://bsky.${PARTITION}.${DOMAIN}
+      - ATP_DEFAULT_LABELER_DID=${OZONE_ADMIN_DID}
     volumes:
       - feedgen_publisher_did:/shared:ro
       - ./social-wrapper.sh:/usr/local/bin/social-wrapper.sh:ro

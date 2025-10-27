@@ -18,4 +18,7 @@ else
 fi
 
 echo "Starting social-app with FEED_OWNER_DID=${FEED_OWNER_DID}"
+if [ -n "$ATP_DEFAULT_LABELER_DID" ]; then
+  echo "Using default labeler: $ATP_DEFAULT_LABELER_DID"
+fi
 exec /usr/bin/bskyweb serve
