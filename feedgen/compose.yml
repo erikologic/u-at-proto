@@ -32,11 +32,21 @@ services:
       retries: 3
       start_period: 10s
 
+  feedgen-https-check:
+    extends:
+      file: ../templates/compose.yml
+      service: https-check
+    depends_on:
+      feedgen:
+        condition: service_healthy
+    environment:
+      HEALTHCHECK_URL: feedgen.${PARTITION}.${DOMAIN}/.well-known/did.json
+
   feedgen-post-setup:
     image: alpine:latest
     restart: "no"
     depends_on:
-      feedgen:
+      feedgen-https-check:
         condition: service_healthy
       relay-post-setup:
         condition: service_healthy
@@ -54,16 +64,6 @@ services:
       retries: 3
       start_period: 5s
 
-
-  feedgen-https-check:
-    extends:
-      file: ../templates/compose.yml
-      service: https-check
-    depends_on:
-      feedgen:
-        condition: service_healthy
-    environment:
-      HEALTHCHECK_URL: feedgen.${PARTITION}.${DOMAIN}/.well-known/did.json
 
 volumes:
   feedgen_data:

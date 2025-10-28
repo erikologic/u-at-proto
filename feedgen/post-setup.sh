@@ -1,12 +1,31 @@
 #!/bin/sh
-set -ex
+set -e
 
 echo "Waiting for feedgen to be ready..."
-while ! wget --no-verbose --tries=1 --spider "https://${FEEDGEN_HOST}/.well-known/did.json" 2>/dev/null; do
-  echo "Feedgen not ready yet, sleeping..."
+echo "FEEDGEN_HOST=${FEEDGEN_HOST}"
+echo "Target URL: https://${FEEDGEN_HOST}/.well-known/did.json"
+MAX_RETRIES=30
+RETRY_COUNT=0
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+  WGET_OUTPUT=$(wget --no-verbose --tries=1 --spider "https://${FEEDGEN_HOST}/.well-known/did.json" 2>&1)
+  WGET_EXIT=$?
+
+  if [ $WGET_EXIT -eq 0 ]; then
+    echo "Feedgen is ready"
+    break
+  fi
+
+  RETRY_COUNT=$((RETRY_COUNT + 1))
+  echo "Feedgen not ready yet (attempt $RETRY_COUNT/$MAX_RETRIES, exit code $WGET_EXIT)"
+  echo "  Error: $WGET_OUTPUT"
   sleep 2
 done
-echo "Feedgen is ready"
+
+if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+  echo "ERROR: Feedgen did not become ready after $MAX_RETRIES retries"
+  echo "Last error: $WGET_OUTPUT"
+  exit 1
+fi
 
 FEEDGEN_HANDLE="${FEEDGEN_HANDLE:-feedgen.${PDS_HOST}}"
 FEEDGEN_PASSWORD="${FEEDGEN_PASSWORD:-feedgen-password-123}"
