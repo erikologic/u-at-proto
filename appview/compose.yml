@@ -51,8 +51,6 @@ services:
         condition: service_healthy
       relay-post-setup:
         condition: service_healthy
-      ozone-https-check:
-        condition: service_healthy
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.bsky.rule=Host(`bsky.${PARTITION}.${DOMAIN}`)"

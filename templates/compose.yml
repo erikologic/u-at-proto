@@ -8,7 +8,7 @@ services:
     network_mode: service:tailscale-traefik
     command: sleep infinity
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsSL --max-time 10 https://$$HEALTHCHECK_URL$${HEALTHCHECK_PATH:-/}"]
+      test: ["CMD-SHELL", "sh -c 'curl -fsSL --max-time 10 https://$$HEALTHCHECK_URL$${HEALTHCHECK_PATH:-/}'"]
       interval: 10s
       timeout: 10s
       retries: 10
